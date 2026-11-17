@@ -208,8 +208,8 @@ export const HISTORY: TimelineCard[] = [
         "詹姆斯·卡吉雅與布萊恩·馮·赫岑以追蹤光線穿過密度場的方式來渲染雲與煙：沿著每條光線，物質既吸收光也發出光。尼爾森·馬克斯在 1995 年的綜述中，把這個發射–吸收模型寫成今天使用的形式：",
       ],
       [
-        "$$C = \\sum_i T_i\\,(1 - e^{-\\sigma_i \\delta_i})\\,c_i, \\qquad T_i = e^{-\\sum_{j<i} \\sigma_j \\delta_j}$$",
-        "$$C = \\sum_i T_i\\,(1 - e^{-\\sigma_i \\delta_i})\\,c_i, \\qquad T_i = e^{-\\sum_{j<i} \\sigma_j \\delta_j}$$",
+        "$C = \\sum_i T_i\\,(1 - e^{-\\sigma_i \\delta_i})\\,c_i$, where $T_i = e^{-\\sum_{j<i} \\sigma_j \\delta_j}$",
+        "$C = \\sum_i T_i\\,(1 - e^{-\\sigma_i \\delta_i})\\,c_i$，其中 $T_i = e^{-\\sum_{j<i} \\sigma_j \\delta_j}$",
       ],
       [
         "Thirty-six years later NeRF (Part IV) uses exactly this sum, with a neural network supplying the density $\\sigma$ and colour $c$.",
@@ -542,7 +542,7 @@ export const HISTORY: TimelineCard[] = [
     title: ["World Labs: the two strands meet", "World Labs：兩條線交會"],
     body: [
       [
-        "Fei-Fei Li launched World Labs in September 2024 with $230 million of funding to build \"large world models\" with spatial intelligence. Her co-founders were Justin Johnson, Christoph Lassner and **Ben Mildenhall**, the first author of NeRF: the company joins the vision-and-learning strand of this history to its rendering strand.",
+        "Fei-Fei Li launched World Labs in September 2024 with \\$230 million of funding to build \"large world models\" with spatial intelligence. Her co-founders were Justin Johnson, Christoph Lassner and **Ben Mildenhall**, the first author of NeRF: the company joins the vision-and-learning strand of this history to its rendering strand.",
         "李飛飛在 2024 年 9 月以 2.3 億美元資金成立 World Labs，目標是打造具備空間智能的「大型世界模型」。共同創辦人是賈斯汀·強森、克里斯多夫·拉斯納，以及 NeRF 的第一作者**班·米爾登霍爾**：這家公司把這段歷史中視覺與學習的那條線，接上了渲染的那條線。",
       ],
     ],

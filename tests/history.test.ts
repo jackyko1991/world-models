@@ -4,9 +4,11 @@
  * planned section points to exists. `LINKS=1 npm test` also fetches every source URL (needs the network).
  */
 import assert from "node:assert/strict";
+import katex from "katex";
 import { existsSync } from "node:fs";
 import { test } from "node:test";
 import { CONCEPT_OUTLINES, READING_OUTLINE, SKILLS_OUTLINES } from "../src/curriculum.ts";
+import { READINGS } from "../src/reading.ts";
 import { ERAS, HISTORY } from "../src/history.ts";
 import { STRINGS } from "../src/strings.ts";
 
@@ -90,6 +92,23 @@ test("every card has a picture that exists, captioned in both languages", () => 
     assert.ok(existsSync(new URL(`../public/${c.image.src}`, import.meta.url)), `${c.id}: missing public/${c.image.src}`);
     filled(c.image.alt, `${c.id} image caption`);
     assert.notDeepEqual(c.image.alt, c.title, `${c.id}: caption is only the title (add it to DIAGRAMS)`);
+  }
+});
+
+test("every $maths$ in the text renders (RichText knows only single $, not $$)", () => {
+  const texts: [string, string][] = [];
+  const add = (where: string, t: readonly string[]) => t.forEach((s) => texts.push([where, s]));
+  for (const c of HISTORY) [c.title, ...c.body, ...(c.image ? [c.image.alt] : [])].forEach((t) => add(c.id, t));
+  for (const o of [...CONCEPT_OUTLINES, ...SKILLS_OUTLINES, READING_OUTLINE])
+    for (const s of o.sections) [s.title, s.question, s.visual, ...s.plan].forEach((t) => add(`${o.id}/${s.id}`, t));
+  for (const r of READINGS) add(`reading ${r.id}`, r.pitch);
+  for (const [where, s] of texts) {
+    assert.ok(!s.includes("$$"), `${where}: $$ is not supported, use $…$ (or Eq on a page)`);
+    const plain = s.replace(/\\\$/g, "");
+    assert.equal((plain.match(/\$/g) ?? []).length % 2, 0, `${where}: unbalanced $ in ${s.slice(0, 60)}`);
+    for (const m of plain.matchAll(/\$(.+?)\$/gs)) {
+      assert.doesNotThrow(() => katex.renderToString(m[1], { throwOnError: true }), `${where}: KaTeX cannot read ${m[1]}`);
+    }
   }
 });
 
