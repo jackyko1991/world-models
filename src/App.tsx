@@ -6,7 +6,7 @@ import { Draft, SCROLL } from "./pages/kit.tsx";
 import { STRINGS } from "./strings.ts";
 
 const REPO_URL = "https://github.com/jackyko1991/world-models";
-/** Concepts' sub-pages, History last (it is also the landing page while the others are planned) */
+/** Concepts' sub-pages, History last; the Concepts tab (and the site) opens on the first */
 const CONCEPT_TABS = ["foundations", "representation", "planning", "generative", "scenes", "limits", "history"] as const;
 const SKILLS_TABS = ["models", "planning", "checking", "rendering"] as const;
 /** Further reading: papers & code, then the learnkit series (Code labs, Explorables) */
@@ -35,7 +35,7 @@ export default function App() {
       id: "concept",
       label: t("page.concept"),
       tabs: CONCEPT_TABS.map((id) => ({ id, label: t(`tab.${id}`) })),
-      defaultTab: "history",
+      defaultTab: CONCEPT_TABS[0],
     },
     {
       id: "skills",
@@ -59,7 +59,7 @@ export default function App() {
         name: lang === "zh-Hant" ? "世界模型" : "World Models",
         tagline: t("tagline"),
         logo: `${import.meta.env.BASE_URL}favicon.svg`,
-        home: () => go("concept", "history"),
+        home: () => go("concept", CONCEPT_TABS[0]),
       }}
       pages={pages}
       route={route}
@@ -97,7 +97,7 @@ export default function App() {
             ) : (
               <Outline area="reading" outlines={[READING_OUTLINE]} id="papers" section={route.section} />
             )
-          ) : tabOf(CONCEPT_TABS, "history") === "history" ? (
+          ) : tabOf(CONCEPT_TABS) === "history" ? (
             <HistoryPage section={route.section} />
           ) : (
             <Outline area="concept" outlines={CONCEPT_OUTLINES} id={tabOf(CONCEPT_TABS)} section={route.section} />

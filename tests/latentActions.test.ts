@@ -4,6 +4,7 @@
  * player may walk into walls a blocked move lands in the same code as "stay" (the frames cannot tell them apart).
  */
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { applyCode, confusion, feature, framePairs, learnLatentActions, purity } from "../src/models/latentActions.ts";
 import { ACTIONS } from "../src/models/tinyGame.ts";
@@ -54,4 +55,32 @@ test("playing a code moves the player by its vector", () => {
   const moved = applyCode(p.before, [1, 0]);
   assert.equal(moved.filter((c) => c === 1).length, 1);
   assert.equal(ACTIONS.length, 5);
+});
+
+// ---- agreement with the Python model (python/wm/latent_actions.py) -----------------------------------------------------------
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/latent_actions.json; otherwise the file must match what this port computes now.
+const FIXTURE = new URL("../python/tests/fixtures/latent_actions.json", import.meta.url);
+function checkFixture(data: unknown) {
+  const json = JSON.stringify(data);
+  if (process.env.UPDATE_FIXTURES) {
+    mkdirSync(new URL(".", FIXTURE), { recursive: true });
+    writeFileSync(FIXTURE, json + "\n");
+    return;
+  }
+  assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
+  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+}
+
+test("fixture for the Python model: features, the k-means fixed point, grading and playing a code", () => {
+  const pairs = framePairs(200, 3, false);
+  const runs = [5, 3].map((k) => {
+    const { centroids, codes } = learnLatentActions(pairs, k);
+    return { k, centroids, codes, confusion: confusion(pairs, codes, k), purity: purity(confusion(pairs, codes, k)) };
+  });
+  checkFixture({
+    pairs,
+    features: pairs.map(feature),
+    runs,
+    applied: [[1, 0], [0, -1], [-0.6, 0.4], [3, 2]].map((v) => ({ frame: pairs[7].before, v, out: applyCode(pairs[7].before, v as [number, number]) })),
+  });
 });

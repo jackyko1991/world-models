@@ -5,7 +5,8 @@
  */
 import { CONCEPT_OUTLINES } from "../../curriculum.ts";
 import LimitsTrajectory from "../../demos/LimitsTrajectory.tsx";
-import { Callout, Eq, Evidence, Figure, HistoryLinks, List, P, Page, Section, SiteLink, Sources, Table, type L } from "../kit.tsx";
+import LimitsRollout from "../../demos/pictures/LimitsRollout.tsx";
+import { Callout, Evidence, Figure, HistoryLinks, List, P, Page, Pictured, Section, SiteLink, Sources, Table, type L } from "../kit.tsx";
 
 const OUTLINE = CONCEPT_OUTLINES.find((o) => o.id === "limits")!;
 const PAGE = "limits";
@@ -270,7 +271,12 @@ export default function LimitsConcept({ section }: { section: string | null }) {
             ],
           ]}
         />
-        <Eq tex={String.raw`e(H) = \frac{1}{N}\sum_{i=1}^{N} \bigl\lVert \hat s^{(i)}_{t+H} - s^{(i)}_{t+H} \bigr\rVert, \qquad \hat s_{k+1} = f_\theta(\hat s_k, a_k),\ \hat s_t = s_t`} />
+        <Pictured
+          tex={String.raw`e(H) = \frac{1}{N}\sum_{i=1}^{N} \bigl\lVert \hat s^{(i)}_{t+H} - s^{(i)}_{t+H} \bigr\rVert, \qquad \hat s_{k+1} = f_\theta(\hat s_k, a_k),\ \hat s_t = s_t`}
+          caption={["Each amber rollout starts on its gray true state, $\\hat s_t = s_t$, and is stepped by $f_\\theta$ with no correction, so small one-step errors compound. Measure the gap at $t+H$, average over the $N$ starts, and you get $e(H)$: the inset shows it growing with the horizon. Made-up curves.", "每條琥珀色的推演都從灰色的真實狀態出發（$\\hat s_t = s_t$），由 $f_\\theta$ 一步步往前推、不經修正，所以單步的小誤差會累積。在 $t+H$ 量出差距、對 $N$ 個起點取平均，就得到 $e(H)$：小圖顯示它隨視野增長。曲線是示意用的。"]}
+        >
+          <LimitsRollout />
+        </Pictured>
         <P
           t={[
             "Here $f_\\theta$ is the learned one-step model, $\\hat s$ its predicted states and $s$ the true ones. The first two yardsticks are cheap and the third is the one that matters, and they need not agree: Lambert et al. (2020) showed that a model's one-step likelihood was not always correlated with control performance, since a model can be accurate where it does not matter and wrong where it does.",

@@ -5,7 +5,7 @@
  * reference; and the renderer reproduces the reference pixels scripts/splat2d.py and scripts/splat3d.py saved.
  */
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { gaussian, rng } from "../src/models/rng.ts";
 import {
@@ -25,8 +25,10 @@ import {
   projectSplat,
   quatToRot,
   renderSplats,
+  shColour,
   sortByDepth,
   splatAlpha,
+  toCamera,
   ALPHA_MIN,
   T_MIN,
   type Projected,
@@ -205,4 +207,73 @@ test("the moving scene: the box moves rigidly, the ball stays above the floor, a
   for (let k = 0; k + 1 < box.length; k += 7) close(dist(a, box[k], box[k + 1]), dist(b, box[k], box[k + 1]), 1e-12, "rigid box");
   for (let t = 0; t <= 1; t += 0.01) assert.ok(ballHeight(t) >= 0.25 - 1e-12, "ball rests on or above the floor");
   z0.forEach((g, i) => g.mean.forEach((v, k) => close(v, z1[i].mean[k], 1e-9, "loop")));
+});
+
+// ── agreement with the Python model (python/wm/splat.py) ─────────────────────────────────────────────────────────────
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/splat.json; otherwise the file must match what this port computes now.
+// Inputs are explicit (drawn here, stored in the file), since numpy's random stream differs from ours.
+
+function splatFixture() {
+  const r = rng(7);
+  const covariance = Array.from({ length: 6 }, () => {
+    const q = randQuat(r), s: Vec3 = [0.01 + r(), 0.01 + r(), 0.01 + r()];
+    return { q, s, R: quatToRot(q), sigma: covariance3D(q, s) };
+  });
+  const projection = Array.from({ length: 6 }, () => {
+    const camArgs = { az: 6 * r(), el: 1.2 * r() - 0.2, radius: 2 + 3 * r(), target: [0, 0.3, 0] as Vec3, fovy: 0.8, width: 160, height: 120 };
+    const cam = orbitCamera(camArgs.az, camArgs.el, camArgs.radius, camArgs.target, camArgs.fovy, camArgs.width, camArgs.height);
+    const mean: Vec3 = [gaussian(r) * 0.5, 0.3 + gaussian(r) * 0.3, gaussian(r) * 0.5];
+    const q = randQuat(r), s: Vec3 = [0.05 + 0.2 * r(), 0.05 + 0.2 * r(), 0.05 + 0.2 * r()];
+    const t = toCamera(cam, mean);
+    return {
+      cam: camArgs, pos: cam.pos, W: cam.W, f: cam.fx, mean, q, s, t,
+      uv: projectPoint(cam, mean),
+      J: perspectiveJacobian(t, cam.fx, cam.fy),
+      cov: projectCovariance(cam, mean, covariance3D(q, s)),
+      cov0: projectCovariance(cam, mean, covariance3D(q, s), 0),
+    };
+  });
+  const colour = Array.from({ length: 4 }, () => {
+    const sh = Array.from({ length: 12 }, () => gaussian(r));
+    const d: Vec3 = [gaussian(r), gaussian(r), gaussian(r)];
+    const n = Math.hypot(...d);
+    const dir: Vec3 = [d[0] / n, d[1] / n, d[2] / n];
+    return { sh, dir, rgb: shColour(sh, dir) };
+  });
+  // a small scene: projected splats, alpha at some pixels, and the whole composited image
+  const camArgs = { az: 0.5, el: 0.4, radius: 3, target: [0, 0, 0] as Vec3, fovy: 0.9, width: 20, height: 16 };
+  const cam = orbitCamera(camArgs.az, camArgs.el, camArgs.radius, camArgs.target, camArgs.fovy, camArgs.width, camArgs.height);
+  const splats: Splat3D[] = Array.from({ length: 40 }, () => ({
+    mean: [gaussian(r) * 0.2, gaussian(r) * 0.2, gaussian(r) * 0.2],
+    quat: randQuat(r),
+    scale: [0.05 + 0.2 * r(), 0.05 + 0.2 * r(), 0.05 + 0.2 * r()],
+    opacity: 0.9 + 0.09 * r(),
+    sh: Array.from({ length: 12 }, () => gaussian(r)),
+  }));
+  const bg: Vec3 = [0.9, 0.95, 1];
+  const img = renderSplats(splats, cam, bg);
+  const pixels = Array.from({ length: 8 }, () => [Math.floor(r() * 20) + 0.5, Math.floor(r() * 16) + 0.5]);
+  const scene = {
+    cam: camArgs, background: bg, splats,
+    projected: img.projected.map((p) => ({ ...p, alpha: pixels.map(([x, y]) => splatAlpha(p, x, y)) })),
+    pixels,
+    rgb: Array.from(img.rgb),
+    T: Array.from(img.T),
+  };
+  const layers = Array.from({ length: 5 }, () => ({ rgb: [r(), r(), r()] as Vec3, alpha: r() }));
+  const frontToBack = { layers, background: [0.2, 0.4, 0.6], rgb: compositeFrontToBack(layers, [0.2, 0.4, 0.6]) };
+  // the moving scene: a few canonical Gaussians of each part, deformed to two times
+  const dyn = dynamicScene(3);
+  const pick = (["floor", "ball", "box", "moon"] as const).flatMap((p) => dyn.part.map((q, i) => (q === p ? i : -1)).filter((i) => i >= 0).slice(0, 3));
+  const canonical = pick.map((i) => dyn.canonical[i]);
+  const part = pick.map((i) => dyn.part[i]);
+  const motion = [0.13, 0.71].map((t) => ({ t, splats: deform({ canonical, part }, t).map(({ mean, quat }) => ({ mean, quat })) }));
+  return { covariance, projection, colour, scene, frontToBack, deform: { canonical, part, motion } };
+}
+
+test("the Python fixture (python/tests/fixtures/splat.json) is current", () => {
+  const file = new URL("../python/tests/fixtures/splat.json", import.meta.url);
+  const data = JSON.parse(JSON.stringify(splatFixture()));
+  if (process.env.UPDATE_FIXTURES === "1") writeFileSync(file, JSON.stringify(data) + "\n");
+  assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), data, "run with UPDATE_FIXTURES=1 to refresh it");
 });

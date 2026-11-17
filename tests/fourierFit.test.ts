@@ -1,10 +1,11 @@
 /**
  * The spectral-bias snapshots (public/models/fourier-fit.json, from scripts/fourier_fit.py): the stored target is the
  * signal, the TS positional encoding matches the script's, the plain network learns the low frequency long before
- * the high one and never fits the high one well, and Fourier features fit all three.
+ * the high one and never fits the high one well, and Fourier features fit all three. With UPDATE_FIXTURES=1 it writes
+ * python/tests/fixtures/fourier_fit.json for the Python model to match; otherwise it checks it.
  */
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { amplitudeAt, mse, recovered, signal, type FourierFitData } from "../src/models/fourierFit.ts";
 import { positionalEncoding } from "../src/models/nerfTiny.ts";
@@ -56,4 +57,28 @@ test("Fourier features fit every frequency, far better than the plain MLP", () =
   const ePlain = mse(data.runs.plain.predictions[last], data.target);
   const eFourier = mse(data.runs.fourier.predictions[last], data.target);
   assert.ok(eFourier < ePlain / 100, `${eFourier} vs ${ePlain}`);
+});
+
+/** Write (UPDATE_FIXTURES=1) or check python/tests/fixtures/<name>.json, which the Python tests match. */
+function fixture(name: string, value: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(value) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `${name}.json is stale: run UPDATE_FIXTURES=1 node --test`);
+}
+
+test("fixture for the Python model (python/tests/fixtures/fourier_fit.json)", () => {
+  const x = [0, 0.1, 0.25, 0.5, 0.77, 0.999];
+  const pick = [0, 5, last];
+  fixture("fourier_fit", {
+    x,
+    signal: x.map((xi) => signal(data, xi)),
+    encoding: x.map((xi) => [...positionalEncoding([xi], 6)]),
+    amplitudes: [1, 4, 7, 12].map((k) => ({ cycles: k, amplitude: amplitudeAt(data.target, k) })),
+    snapshots: pick.map((s) => ({
+      index: s,
+      plain: { recovered: recovered(data, data.runs.plain.predictions[s]), mse: mse(data.runs.plain.predictions[s], data.target) },
+      fourier: { recovered: recovered(data, data.runs.fourier.predictions[s]), mse: mse(data.runs.fourier.predictions[s], data.target) },
+    })),
+  });
 });

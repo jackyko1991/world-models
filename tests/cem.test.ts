@@ -1,9 +1,18 @@
 /** CEM: converges on a quadratic's known optimum, beats random shooting at equal samples, and MPC reaches the goal. */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
-import { CEM_DEFAULTS, cem, mpc, randomShooting } from "../src/models/cem.ts";
+import { CEM_DEFAULTS, cem, cemIteration, mpc, randomShooting } from "../src/models/cem.ts";
 import { POINT_MASS, pmCost, pmGoalDistance, pmRollout, pmStep, type PmState } from "../src/models/pointmass.ts";
-import { rng } from "../src/models/rng.ts";
+import { gaussian, rng } from "../src/models/rng.ts";
+
+/** Write python/tests/fixtures/<name>.json with UPDATE_FIXTURES=1; otherwise assert it matches the current output. */
+function checkFixture(name: string, data: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(data) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+}
 
 test("CEM converges on the optimum of a shifted quadratic", () => {
   const target = [0.3, -0.5, 0.8, 0.1, -0.2, 0.6];
@@ -56,4 +65,17 @@ test("a rollout of the point mass is exact: zero force only decays the velocity"
   const path = pmRollout(POINT_MASS, [0, 0, 1, 0], new Array(20).fill(0));
   const vx = path.map((s) => s[2]);
   for (let t = 1; t < vx.length; t++) assert.ok(Math.abs(vx[t] - vx[t - 1] * (1 - POINT_MASS.dt * POINT_MASS.drag)) < 1e-12);
+});
+
+test("fixture for the Python port: one CEM iteration on the point mass, with its Gaussian noise", () => {
+  const H = 5;
+  const o = { ...CEM_DEFAULTS, samples: 16, elites: 4 };
+  const mean = Array.from({ length: 2 * H }, (_, d) => (d % 2 ? 0.3 : 0.5));
+  const std = Array.from({ length: 2 * H }, (_, d) => 0.4 + 0.1 * (d % 3));
+  const cost = (p: number[]) => pmCost(POINT_MASS, POINT_MASS.start, p);
+  // the same stream again, to record the standard normals the iteration drew (one per action, plan by plan)
+  const twin = rng(11);
+  const noise = Array.from({ length: o.samples }, () => mean.map(() => gaussian(twin)));
+  const it = cemIteration(cost, mean, std, o, rng(11));
+  checkFixture("cem", { options: o, H, noise, ...it });
 });

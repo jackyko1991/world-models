@@ -78,6 +78,13 @@ export interface DynaRun {
   q: Float64Array;
 }
 
+/** One Q-learning update of Q[s * 4 + a], in place. At the goal (`terminal`) there is no future, so the target is just r. */
+export function qUpdate(q: Float64Array, s: number, a: number, reward: number, next: number, terminal: boolean, alpha: number, gamma: number) {
+  const best = Math.max(q[next * 4], q[next * 4 + 1], q[next * 4 + 2], q[next * 4 + 3]);
+  const target = reward + (terminal ? 0 : gamma * best);
+  q[s * 4 + a] += alpha * (target - q[s * 4 + a]);
+}
+
 // #region dyna
 export function dynaQ(m: Maze, o: DynaOptions): DynaRun {
   const r = rng(o.seed); // acting
@@ -85,11 +92,7 @@ export function dynaQ(m: Maze, o: DynaOptions): DynaRun {
   const q = new Float64Array(m.rows * m.cols * 4);
   const model = new Map<number, { next: number; reward: number }>(); // (s, a) → what happened last time
   const seen: number[] = []; // the keys of `model`, so we can pick one at random
-  const update = (s: number, a: number, reward: number, next: number) => {
-    const best = Math.max(q[next * 4], q[next * 4 + 1], q[next * 4 + 2], q[next * 4 + 3]);
-    const target = reward + (next === m.goal ? 0 : o.gamma * best);
-    q[s * 4 + a] += o.alpha * (target - q[s * 4 + a]);
-  };
+  const update = (s: number, a: number, reward: number, next: number) => qUpdate(q, s, a, reward, next, next === m.goal, o.alpha, o.gamma);
   const episodeEnds: number[] = [];
   let s = m.start;
   for (let t = 1; t <= o.steps; t++) {

@@ -45,6 +45,11 @@ jobs:
         working-directory: .
       - run: node --test tests/*.test.ts
         working-directory: vendor/learnkit/web
+      # python/wm: the models shown on the pages, checked on their own and against the TypeScript ports
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: pip install "numpy>=2,<3" pytest && python -m pytest -q python/tests
       - run: npm run build
         working-directory: .
       - uses: actions/configure-pages@v6.0.0

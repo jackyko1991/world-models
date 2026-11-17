@@ -1,7 +1,8 @@
 /** Concepts ▸ 3D scene models ▸ section "volume": density, transmittance and the volume-rendering sum. */
 import { Question, Sub } from "../../../demos/SectionText.tsx";
 import VolumeRay from "../../../demos/VolumeRay.tsx";
-import { Callout, Eq, Figure, HistoryLinks, List, P, Section, SiteLink, Sources } from "../../kit.tsx";
+import { Callout, Figure, HistoryLinks, List, P, Pictured, Section, SiteLink, Sources } from "../../kit.tsx";
+import { VolumeIntegralPicture, VolumeSegmentPicture, VolumeSumPicture, VolumeWeightsPicture } from "../../../demos/pictures/VolumePictures.tsx";
 
 export default function Volume({ n }: { n: number }) {
   return (
@@ -25,7 +26,15 @@ export default function Volume({ n }: { n: number }) {
           "**透射率** $T(t)$ 是光從 $t_n$ 走到 $t$ 而不被吸收的機率。走一小步 $dt$，它乘上 $1 - \\sigma\\,dt$，所以 $dT/dt = -\\sigma T$，於是",
         ]}
       />
-      <Eq tex="T(t) = \exp\!\Big(-\int_{t_n}^{t} \sigma(\mathbf{r}(s))\,ds\Big), \qquad C = \int_{t_n}^{t_f} T(t)\,\sigma(\mathbf{r}(t))\,\mathbf{c}(\mathbf{r}(t))\,dt." />
+      <Pictured
+        tex="T(t) = \exp\!\Big(-\int_{t_n}^{t} \sigma(\mathbf{r}(s))\,ds\Big), \qquad C = \int_{t_n}^{t_f} T(t)\,\sigma(\mathbf{r}(t))\,\mathbf{c}(\mathbf{r}(t))\,dt."
+        caption={[
+          "Light given off at a point $t$ inside the cloud heads back to the camera and is dimmed by all the matter between $t_n$ and $t$ (the shaded stretch): $T(t)$ is the share that gets through. The pixel adds up these surviving glows over every $t$.",
+          "雲內某點 $t$ 發出的光往相機走，途中被 $t_n$ 到 $t$ 之間的所有物質削弱（陰影段）：$T(t)$ 是能通過的比例。像素就是把每個 $t$ 存活下來的光加總。",
+        ]}
+      >
+        <VolumeIntegralPicture />
+      </Pictured>
       <P
         t={[
           "Read the colour integral term by term: light emitted at $t$ (in proportion to how much matter is there, $\\sigma$, with colour $\\mathbf{c}$) that survives the trip back to the camera ($T$). This is the emission–absorption model that Kajiya and Von Herzen used to ray-trace clouds in 1984 and that Max wrote down in this form in 1995.",
@@ -40,9 +49,25 @@ export default function Volume({ n }: { n: number }) {
           "電腦無法精確積分任意的場，所以我們沿光線取樣 $t_1 < t_2 < \\dots < t_N$，並假設 $\\sigma$ 與 $\\mathbf{c}$ 在每一段 $[t_i, t_{i+1})$ 上是常數，段長 $\\delta_i = t_{i+1} - t_i$。於是在第 $i$ 段內，透射率從起點的值 $T_i$ 開始指數衰減，$T(t_i + s) = T_i e^{-\\sigma_i s}$，而這一段對積分的貢獻可以手算出來：",
         ]}
       />
-      <Eq tex="\int_0^{\delta_i} T_i e^{-\sigma_i s}\,\sigma_i\,\mathbf{c}_i\,ds = T_i\big(1 - e^{-\sigma_i\delta_i}\big)\,\mathbf{c}_i." />
+      <Pictured
+        tex="\int_0^{\delta_i} T_i e^{-\sigma_i s}\,\sigma_i\,\mathbf{c}_i\,ds = T_i\big(1 - e^{-\sigma_i\delta_i}\big)\,\mathbf{c}_i."
+        caption={[
+          "One constant slab: light entering from behind fades exponentially inside it, so $e^{-\\sigma_i\\delta_i}$ passes and $1 - e^{-\\sigma_i\\delta_i}$ is stopped. The slab glows with exactly that weight, and its glow is dimmed by $T_i$ on the way to the camera.",
+          "一片常數薄層：從後方進入的光在其中指數衰減，所以通過 $e^{-\\sigma_i\\delta_i}$、擋下 $1 - e^{-\\sigma_i\\delta_i}$。薄層正好以這個權重發光，而它的光在前往相機的路上被 $T_i$ 削弱。",
+        ]}
+      >
+        <VolumeSegmentPicture />
+      </Pictured>
       <P t={["Adding the segments gives the sum NeRF uses:", "把各段加起來，就得到 NeRF 使用的總和："]} />
-      <Eq tex="C \approx \sum_{i=1}^{N} \underbrace{T_i\,(1 - e^{-\sigma_i\delta_i})}_{w_i}\,\mathbf{c}_i, \qquad T_i = \exp\!\Big(-\sum_{j<i}\sigma_j\delta_j\Big) = \prod_{j<i}(1-\alpha_j), \qquad \alpha_i = 1 - e^{-\sigma_i\delta_i}." />
+      <Pictured
+        tex="C \approx \sum_{i=1}^{N} \underbrace{T_i\,(1 - e^{-\sigma_i\delta_i})}_{w_i}\,\mathbf{c}_i, \qquad T_i = \exp\!\Big(-\sum_{j<i}\sigma_j\delta_j\Big) = \prod_{j<i}(1-\alpha_j), \qquad \alpha_i = 1 - e^{-\sigma_i\delta_i}."
+        caption={[
+          "Slabs in a row, darker for denser. The amber band is what the camera can still see: each slab takes away its fraction $\\alpha_j$, so the band's height before slab $i$ is $T_i = \\prod_{j<i}(1-\\alpha_j)$, and slab $i$ contributes $w_i = T_i\\alpha_i$ of its colour.",
+          "排成一列的薄層，越密越深。琥珀色光帶是相機還看得見的部分：每片薄層拿走自己的比例 $\\alpha_j$，所以第 $i$ 片之前的光帶高度是 $T_i = \\prod_{j<i}(1-\\alpha_j)$，而第 $i$ 片貢獻其顏色的 $w_i = T_i\\alpha_i$。",
+        ]}
+      >
+        <VolumeSumPicture />
+      </Pictured>
       <List
         items={[
           [
@@ -67,7 +92,15 @@ export default function Volume({ n }: { n: number }) {
           "因為 $T_{i+1} = T_i(1 - \\alpha_i)$，每個權重都是相鄰兩個透射率的差，$w_i = T_i\\alpha_i = T_i - T_{i+1}$。總和會逐項相消：",
         ]}
       />
-      <Eq tex="\sum_{i=1}^{N} w_i = (T_1 - T_2) + (T_2 - T_3) + \dots + (T_N - T_{N+1}) = 1 - T_{\text{final}}, \qquad T_1 = 1." />
+      <Pictured
+        tex="\sum_{i=1}^{N} w_i = (T_1 - T_2) + (T_2 - T_3) + \dots + (T_N - T_{N+1}) = 1 - T_{\text{final}}, \qquad T_1 = 1."
+        caption={[
+          "Transmittance falls in steps from $T_1 = 1$; each drop is a weight $w_i$. Stacked, the drops fill exactly $1 - T_{\\text{final}}$, and the gray remainder $T_{\\text{final}}$ is the light left over for the background.",
+          "透射率從 $T_1 = 1$ 一級級下降；每一級落差就是一個權重 $w_i$。把落差疊起來，剛好填滿 $1 - T_{\\text{final}}$，剩下的灰色部分 $T_{\\text{final}}$ 就是留給背景的光。",
+        ]}
+      >
+        <VolumeWeightsPicture />
+      </Pictured>
       <P
         t={[
           "So the weights are a probability distribution over where the ray stops, and the missing mass $T_{\\text{final}}$ is the chance it passes through everything. That remainder is exactly where the background goes: the pixel is $C + T_{\\text{final}}\\,\\mathbf{c}_{\\text{bg}}$. Every weight lies in $[0, 1]$ and they never add up to more than one, whatever the densities, so the sum can never invent light, and the identity holds exactly for any sample spacing; the samples only decide how well the sum approximates the integral.",

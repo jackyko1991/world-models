@@ -8,6 +8,8 @@ platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
 [dependencies]
 nodejs = "24.*" # the same major version as .github/workflows/pages.yml
 python = "3.13.*"
+numpy = "2.*" # python/wm: the models as the reader sees them
+pytest = "*"
 
 [tasks]
 install = { cmd = "npm ci", inputs = ["package.json", "package-lock.json"], outputs = ["node_modules/.package-lock.json"] }
@@ -17,6 +19,7 @@ test-links = { cmd = "npm test", env = { LINKS = "1" }, depends-on = ["install"]
 typecheck = { cmd = "npx tsc -b", depends-on = ["install"] }
 build = { cmd = "npm run build", depends-on = ["install"], description = "the static site in dist/" }
 preview = { cmd = "npm run preview", depends-on = ["build"] }
+test-py = { cmd = "python -m pytest -q python/tests", description = "the Python models' tests (python/wm, and agreement with the TypeScript ports)" }
 history-images = { cmd = "python scripts/history_svgs.py", description = "redraw the History cards' diagrams (public/history/*.svg)" }
 
 # Offline training of the demos' small fixed models (latent map, tiny NeRF, 2-D/3-D Gaussian splats): weights are
@@ -26,7 +29,6 @@ history-images = { cmd = "python scripts/history_svgs.py", description = "redraw
 platforms = ["osx-arm64", "linux-64", "win-64"] # PyTorch has no Intel-Mac wheels for this Python
 
 [feature.train.pypi-dependencies]
-numpy = "*"
 torch = "*"
 
 [feature.train.tasks]

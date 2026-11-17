@@ -4,7 +4,7 @@
  * interpolating pixels cross-fades two half-bright balls.
  */
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { decode, lerpLatent, lerpPixels, nearest, peak, renderFrame, type LatentMapData } from "../src/models/latentMap.ts";
 
@@ -55,4 +55,30 @@ test("latent interpolation keeps one bright ball; pixel interpolation fades two"
 test("the asset stays small", () => {
   const bytes = readFileSync(new URL("../public/models/latent-map.json", import.meta.url)).length;
   assert.ok(bytes < 2 * 1024 * 1024);
+});
+
+// ---- agreement with the Python model (python/wm/latent_map.py) -----------------------------------------------------------
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/latent_map.json; otherwise the file must match what this port computes now.
+const FIXTURE = new URL("../python/tests/fixtures/latent_map.json", import.meta.url);
+function checkFixture(data: unknown) {
+  const json = JSON.stringify(data);
+  if (process.env.UPDATE_FIXTURES) {
+    mkdirSync(new URL(".", FIXTURE), { recursive: true });
+    writeFileSync(FIXTURE, json + "\n");
+    return;
+  }
+  assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
+  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+}
+
+test("fixture for the Python decoder", () => {
+  const zs = [...data.references.map((r) => r.z), [0, 0], [1.5, -0.75], [-2, 0.5]];
+  const [a, b] = [points[0], points[1]];
+  checkFixture({
+    zs,
+    decoded: zs.map((z) => Array.from(decode(layers, z))),
+    lerp: { za: a.z, zb: b.z, t: 0.3, latent: Array.from(lerpLatent(layers, a.z, b.z, 0.3)) },
+    frames: [[5.3, 9.1], [8, 8], [3.25, 12.5]].map(([x, y]) => ({ x, y, frame: Array.from(renderFrame(size, radius, x, y)) })),
+    nearest: [[0, 0], [1, 1], [-1.5, 0.25]].map((z) => ({ z, index: nearest(points, z) })),
+  });
 });

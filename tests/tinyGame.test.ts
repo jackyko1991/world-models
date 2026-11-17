@@ -5,6 +5,7 @@
  * are flagged, and more recorded play covers more of the game.
  */
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { COIN_SPOTS, START, TOKENS, UNKNOWN, coverage, decode, encode, predict, record, render, step, train, type Action } from "../src/models/tinyGame.ts";
 
@@ -62,4 +63,36 @@ test("more recorded play covers more (frame, action) pairs (monotone)", () => {
   for (let i = 1; i < cov.length; i++) assert.ok(cov[i].seen >= cov[i - 1].seen);
   assert.ok(cov[0].seen / cov[0].total < 0.2);
   assert.ok(cov[4].seen / cov[4].total > 0.9);
+});
+
+// ---- agreement with the Python model (python/wm/tiny_game.py) -----------------------------------------------------------
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/tiny_game.json; otherwise the file must match what this port computes now.
+const FIXTURE = new URL("../python/tests/fixtures/tiny_game.json", import.meta.url);
+function checkFixture(data: unknown) {
+  const json = JSON.stringify(data);
+  if (process.env.UPDATE_FIXTURES) {
+    mkdirSync(new URL(".", FIXTURE), { recursive: true });
+    writeFileSync(FIXTURE, json + "\n");
+    return;
+  }
+  assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
+  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+}
+
+test("fixture for the Python model: game steps, tokens and a trained table", () => {
+  const states = [START, { px: 0, py: 0, coin: 1, clock: 3 }, { px: 4, py: 0, coin: 0, clock: 6 }, { px: 1, py: 1, coin: 4, clock: 9 }, { px: 5, py: 2, coin: 3, clock: 2 }];
+  const steps = states.flatMap((s) => ([0, 1, 2, 3, 4] as Action[]).map((a) => ({ state: s, action: a, next: step(s, a) })));
+  const play = record(300);
+  const g = train(play);
+  const queries = play.slice(0, 60).map((t) => ({ tokens: encode(render(t.before), g.cb), action: t.action }));
+  queries.push({ tokens: encode(render({ px: 5, py: 3, coin: 2, clock: 0 }), g.cb), action: 2 as Action });
+  checkFixture({
+    steps,
+    frames: states.map((s) => ({ state: s, frame: render(s) })),
+    play,
+    patterns: g.cb.patterns,
+    predictions: queries.map((q) => ({ ...q, ...predict(g, q.tokens, q.action) })),
+    decoded: queries.slice(0, 10).map((q) => ({ tokens: q.tokens, frame: decode(q.tokens, g.cb) })),
+    coverage: coverage(g),
+  });
 });

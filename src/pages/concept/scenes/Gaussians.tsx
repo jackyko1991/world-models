@@ -2,7 +2,11 @@
 import { RichText, useLang } from "@learnkit/web";
 import Splat2D from "../../../demos/Splat2D.tsx";
 import SplatViewer from "../../../demos/SplatViewer.tsx";
-import { Callout, Eq, Figure, HistoryLinks, List, P, Section, SiteLink, Sources, Table } from "../../kit.tsx";
+import GaussiansColour from "../../../demos/pictures/GaussiansColour.tsx";
+import GaussiansComposite from "../../../demos/pictures/GaussiansComposite.tsx";
+import GaussiansCovariance from "../../../demos/pictures/GaussiansCovariance.tsx";
+import GaussiansProjection from "../../../demos/pictures/GaussiansProjection.tsx";
+import { Callout, Figure, HistoryLinks, List, P, Pictured, Section, SiteLink, Sources, Table } from "../../kit.tsx";
 
 export default function Gaussians({ n }: { n: number }) {
   return (
@@ -24,14 +28,30 @@ export default function Gaussians({ n }: { n: number }) {
           "每個基本元素是一個三維高斯，平均 $\\mu$（中心）與共變異數 $\\Sigma$（形狀）：$G(\\mathbf{x}) = \\exp\\!\\big(-\\tfrac12(\\mathbf{x}-\\mu)^\\top\\Sigma^{-1}(\\mathbf{x}-\\mu)\\big)$。共變異數必須對稱且正定，直接對它的六個元素做梯度下降，很快就會破壞這個性質。所以 3DGS 改存一個旋轉（單位四元數 $q$，給出 $R$）與三個尺度 $S = \\operatorname{diag}(s_1, s_2, s_3)$，再組成",
         ]}
       />
-      <Eq tex="\Sigma = R\,S\,S^\top R^\top" />
+      <Pictured
+        tex="\Sigma = R\,S\,S^\top R^\top"
+        caption={[
+          "A unit sphere, stretched by $S$ to semi-axes $s_1, s_2, s_3$, then turned by $R$: whatever the optimiser does to $q$ and $s$, the covariance built this way is always a real ellipsoid.",
+          "單位球先被 $S$ 拉伸成半軸 $s_1, s_2, s_3$，再被 $R$ 旋轉：不管最佳化器怎麼改 $q$ 與 $s$，這樣組出的共變異數永遠是真正的橢球。",
+        ]}
+      >
+        <GaussiansCovariance />
+      </Pictured>
       <P
         t={[
           "which is symmetric and positive definite for any $q$ and non-zero scales (its eigenvectors are the columns of $R$, its eigenvalues $s_i^2$). Each Gaussian also has an **opacity** $o \\in (0, 1)$ and a **colour that depends on the viewing direction** $\\mathbf{d}$, stored as spherical-harmonic coefficients $k_\\ell$ per colour channel. With degree 0 and 1, as in this page's demos,",
           "對任何 $q$ 與非零尺度，它都對稱且正定（特徵向量是 $R$ 的各行，特徵值是 $s_i^2$）。每個高斯還有一個**不透明度** $o \\in (0, 1)$，以及一個**隨觀看方向** $\\mathbf{d}$ **改變的顏色**，以每個色彩通道的球諧係數 $k_\\ell$ 儲存。用到 0 階與 1 階時（本頁示範就是如此），",
         ]}
       />
-      <Eq tex="c(\mathbf{d}) = \tfrac12 + C_0 k_0 + C_1\,(-d_y k_1 + d_z k_2 - d_x k_3),\qquad C_0 = \tfrac{1}{2\sqrt{\pi}},\ C_1 = \tfrac{\sqrt3}{2\sqrt\pi}." />
+      <Pictured
+        tex="c(\mathbf{d}) = \tfrac12 + C_0 k_0 + C_1\,(-d_y k_1 + d_z k_2 - d_x k_3),\qquad C_0 = \tfrac{1}{2\sqrt{\pi}},\ C_1 = \tfrac{\sqrt3}{2\sqrt\pi}."
+        caption={[
+          "The same splat shows a different colour to each viewing direction $\mathbf{d}$. The ring is $c(\mathbf{d})$ for every direction in the plane: $k_0$ sets its average, $k_1, k_2, k_3$ tilt it across directions (degree 1 is linear in $\mathbf{d}$).",
+          "同一個潑濺從不同觀看方向 $\mathbf{d}$ 看，顏色不同。環上是平面中每個方向的 $c(\mathbf{d})$：$k_0$ 決定平均，$k_1, k_2, k_3$ 決定它隨方向的傾斜（1 階對 $\mathbf{d}$ 是線性的）。",
+        ]}
+      >
+        <GaussiansColour />
+      </Pictured>
       <P
         t={[
           "The original paper goes up to degree 3 (16 coefficients per channel), so one Gaussian is 59 numbers: 3 for $\\mu$, 4 for $q$, 3 for $s$, 1 for $o$ and 48 for colour. Ours are 23.",
@@ -46,7 +66,15 @@ export default function Gaussians({ n }: { n: number }) {
           "相機先把平均移到相機座標 $\\mathbf{t} = W(\\mu - \\mathbf{p}_{\\text{cam}})$（$W$ 是視角旋轉），再除以深度：$u = f_x t_x/t_z + c_x$、$v = f_y t_y/t_z + c_y$。這個除法不是線性的，所以高斯投影後並不完全是高斯。Zwicker、Pfister、van Baar 與 Gross 的 **EWA 潑濺**（2001）在平均處以切線取代它，也就是雅可比矩陣",
         ]}
       />
-      <Eq tex="J = \begin{pmatrix} f_x/t_z & 0 & -f_x t_x/t_z^2 \\ 0 & f_y/t_z & -f_y t_y/t_z^2 \end{pmatrix},\qquad \Sigma' = J\,W\,\Sigma\,W^\top J^\top" />
+      <Pictured
+        tex="J = \begin{pmatrix} f_x/t_z & 0 & -f_x t_x/t_z^2 \\ 0 & f_y/t_z & -f_y t_y/t_z^2 \end{pmatrix},\qquad \Sigma' = J\,W\,\Sigma\,W^\top J^\top"
+        caption={[
+          "$W$ turns the world into the camera's frame; the rays that graze the ellipsoid $\Sigma$ cross the image plane and bound its footprint $\Sigma'$. $J$ treats the divide by depth as linear near $\mu$, so the footprint comes out an exact ellipse.",
+          "$W$ 把世界轉到相機座標；擦過橢球 $\Sigma$ 的光線穿過影像平面，圍出它的足跡 $\Sigma'$。$J$ 把深度除法在 $\mu$ 附近當成線性，所以足跡恰好是一個橢圓。",
+        ]}
+      >
+        <GaussiansProjection />
+      </Pictured>
       <P
         t={[
           "and a linear map of a Gaussian is a Gaussian, so the footprint is a 2-D Gaussian with covariance $\\Sigma'$ ($2\\times2$). 3DGS adds $0.3$ to its diagonal so no splat is thinner than about a pixel; ours does too. The tests check $\\Sigma'$ against a finite-difference Jacobian of the real projection, and against samples pushed through it.",
@@ -61,7 +89,15 @@ export default function Gaussians({ n }: { n: number }) {
           "依深度 $t_z$ 排序高斯。在像素 $\\mathbf{x}$，潑濺 $i$ 蓋住比例 $\\alpha_i = o_i \\exp\\!\\big(-\\tfrac12 (\\mathbf{x}-\\mu_i')^\\top \\Sigma_i'^{-1} (\\mathbf{x}-\\mu_i')\\big)$（$\\mu_i'$ 是投影後的平均），顏色為",
         ]}
       />
-      <Eq tex="C(\mathbf{x}) = \sum_i c_i\,\alpha_i\,T_i,\qquad T_i = \prod_{j<i} (1-\alpha_j)." />
+      <Pictured
+        tex="C(\mathbf{x}) = \sum_i c_i\,\alpha_i\,T_i,\qquad T_i = \prod_{j<i} (1-\alpha_j)."
+        caption={[
+          "One pixel's line of sight through three splats sorted by depth. The light still getting through, $T$, steps down at each one; the step $\alpha_i T_i$, drawn in the splat's colour, is its share of $C(\mathbf{x})$. The third splat is the most opaque but gets the least.",
+          "一個像素的視線依深度穿過三個潑濺。仍能穿透的光 $T$ 每遇一個就往下一階；這一階 $\alpha_i T_i$（以該潑濺的顏色畫出）就是它在 $C(\mathbf{x})$ 中的份額。第三個潑濺最不透明，分到的卻最少。",
+        ]}
+      >
+        <GaussiansComposite />
+      </Pictured>
       <P
         t={[
           "This is the same sum as volume rendering's quadrature, with $\\alpha_i$ in place of $1 - e^{-\\sigma_i\\delta_i}$. Going front to back, $T$ only shrinks, so a pixel can stop once $T < 10^{-4}$: most of the list is never touched. The real rasteriser cuts the screen into 16×16 tiles and sorts per tile on the GPU; ours sorts once per frame on the CPU.",
@@ -95,8 +131,8 @@ export default function Gaussians({ n }: { n: number }) {
 
       <Figure
         caption={[
-          "**2-D splatting fitting a picture.** 16 Gaussians grow to about 150 over 2000 Adam steps (precomputed by `scripts/splat2d.py`; each snapshot is rendered here by `splat.ts`). Click the right-hand picture to pick the Gaussian that contributes most to a pixel. A toy: 2-D, no camera, list order as depth, a 64×64 picture, mean-squared error instead of L1 + D-SSIM, and one opacity reset at step 800 instead of every 3000.",
-          "**二維潑濺擬合一張圖片。** 16 個高斯在 2000 步 Adam 中增加到約 150 個（由 `scripts/splat2d.py` 預先計算；每張快照在這裡由 `splat.ts` 渲染）。點右邊的圖片，選出對該像素貢獻最大的高斯。這是玩具版：二維、沒有相機、以清單順序當深度、64×64 的圖片、用均方誤差而非 L1 + D-SSIM，而且只在第 800 步重設一次不透明度，而不是每 3000 步。",
+          "**2-D splatting fitting a picture.** 16 Gaussians grow to about 150 over 2000 Adam steps (precomputed by `scripts/splat2d.py`; each snapshot is rendered here by the model in `python/wm/splat.py`, ported to TypeScript). Click the right-hand picture to pick the Gaussian that contributes most to a pixel. A toy: 2-D, no camera, list order as depth, a 64×64 picture, mean-squared error instead of L1 + D-SSIM, and one opacity reset at step 800 instead of every 3000.",
+          "**二維潑濺擬合一張圖片。** 16 個高斯在 2000 步 Adam 中增加到約 150 個（由 `scripts/splat2d.py` 預先計算；每張快照在這裡由 `python/wm/splat.py` 的模型渲染，移植成 TypeScript）。點右邊的圖片，選出對該像素貢獻最大的高斯。這是玩具版：二維、沒有相機、以清單順序當深度、64×64 的圖片、用均方誤差而非 L1 + D-SSIM，而且只在第 800 步重設一次不透明度，而不是每 3000 步。",
         ]}
       >
         <Splat2D />

@@ -4,8 +4,18 @@
  * ensemble's predicted uncertainty is better calibrated out of the data than the noise alone.
  */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
-import { DATA_RANGE, disagreement, fan, fitEnsemble, normalCdf, normalQuantile, reliability, SIGMA, spread } from "../src/models/ensemble.ts";
+import { DATA_RANGE, dataset, disagreement, fan, fitEnsemble, fitMember, normalCdf, normalQuantile, predictDelta, reliability, SIGMA, spread } from "../src/models/ensemble.ts";
+import { rng } from "../src/models/rng.ts";
+
+/** Write python/tests/fixtures/<name>.json with UPDATE_FIXTURES=1; otherwise assert it matches the current output. */
+function checkFixture(name: string, data: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(data) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+}
 
 const e = fitEnsemble();
 const meanSd = (a: number, b: number) => {
@@ -55,3 +65,24 @@ test("out of the data, noise alone is overconfident; adding disagreement repairs
   assert.ok(outTot.error < outAle.error / 2, `total ${outTot.error} vs aleatoric ${outAle.error}`);
 });
 // #endregion calibration
+
+test("fixture for the Python port: ridge fits for given features, predictions, disagreement, a deterministic fan", () => {
+  const xs = [0, 0.5, 1.5, 2.9, 3.5, 6];
+  const members = e.members.map((m) => ({ ...m, predictions: xs.map((x) => predictDelta(m, x)) }));
+  // one member refitted from given data and given random features: the weights must come out the same
+  const data = dataset(30, 4);
+  const one = fitMember(data.xs, data.ys, rng(8));
+  const paths = fan("deterministic", e, 0.5, 20, 1);
+  checkFixture("ensemble", {
+    sigma: e.sigma,
+    xs,
+    members,
+    disagreement: xs.map((x) => disagreement(e, x)),
+    ridge: { xs: data.xs, ys: data.ys, omega: one.omega, phase: one.phase, w: one.w },
+    deterministic: paths[0].xs,
+    spreadPaths: [[0, 1, 2], [0, 2, 3], [0, 0.5, 4]],
+    spread: spread([[0, 1, 2], [0, 2, 3], [0, 0.5, 4]].map((xs) => ({ xs }))),
+    cdf: [-3, -1, -0.2, 0, 0.7, 1.959964, 4].map((z) => [z, normalCdf(z)]),
+    quantile: [0.05, 0.5, 0.75, 0.95].map((p) => [p, normalQuantile(p)]),
+  });
+});

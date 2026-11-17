@@ -155,7 +155,7 @@ export default function GridworldDemo() {
 
   return (
     <div className="w-full space-y-3 outline-none" tabIndex={0} onKeyDown={onKey} aria-label={pick(["Gridworld: use the arrow keys to move", "格子世界：用方向鍵移動"])}>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="flex flex-col items-center gap-1">
           <p className="text-xs font-semibold" style={{ color: COLOR.model }}>
             {pick(["Model's predicted next frame", "模型預測的下一個畫面"])}

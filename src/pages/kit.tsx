@@ -7,6 +7,7 @@
  * will be built around and what it will cover, so the outline can be read and changed before the text is written.
  */
 import { javascript } from "@codemirror/lang-javascript";
+import { python } from "@codemirror/lang-python";
 import { CodeBlock, go, PageToc, plainText, RichText, Tex, useLang } from "@learnkit/web";
 import { isValidElement, useEffect, type ReactElement, type ReactNode } from "react";
 import { HISTORY } from "../history.ts";
@@ -123,7 +124,7 @@ const TS = javascript({ typescript: true });
 export function Code({ code, title, note }: { code: string; title?: string; note?: L }) {
   const { pick } = useLang();
   return (
-    <div className="space-y-1">
+    <div className="min-w-0 space-y-1">
       <CodeBlock code={code} title={title} language={TS} />
       {note && (
         <p className="text-[11px] text-gray-500">
@@ -132,6 +133,65 @@ export function Code({ code, title, note }: { code: string; title?: string; note
       )}
     </div>
   );
+}
+
+/**
+ * An equation with the physical picture it describes: the equation (KaTeX) beside an illustration (an inline SVG
+ * whose labels use the equation's symbols), side by side on wide screens and stacked on phones, with one caption.
+ * Every display equation on a page is a Pictured (tests/pages.test.ts checks there is no bare <Eq>).
+ */
+export function Pictured({ tex, caption, children }: { tex: string; caption: L; children: ReactNode }) {
+  const { pick } = useLang();
+  return (
+    <figure className="rounded-lg border border-gray-200 bg-gray-50 p-3 sm:p-4" data-testid="pictured">
+      <div className="grid items-center gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="min-w-0 overflow-x-auto py-1 text-center">
+          <Tex tex={tex} display />
+        </div>
+        <div className="flex min-w-0 justify-center">{children}</div>
+      </div>
+      <figcaption className="mt-2 text-center text-xs text-gray-500">
+        <RichText text={pick(caption)} />
+      </figcaption>
+    </figure>
+  );
+}
+
+const PY = python();
+
+/**
+ * Read-only Python, syntax-coloured: the code the reader studies. Usually a region of a file in python/wm/
+ * (`import src from "../../../python/wm/cem.py?raw"` then `pyRegion(src, "refit")`), titled with its path. The demos run
+ * a TypeScript port of the same model (src/models/); python/tests check the two agree.
+ */
+export function Py({ code, title, note }: { code: string; title?: string; note?: L }) {
+  const { pick } = useLang();
+  return (
+    // min-w-0: inside a grid or flex row the block shrinks to the column (long lines wrap) instead of widening the page
+    <div className="min-w-0 space-y-1">
+      <CodeBlock code={code} title={title} language={PY} />
+      {note && (
+        <p className="text-[11px] text-gray-500">
+          <RichText text={pick(note)} />
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The lines between `# region <name>` and `# endregion` in a Python source (markers excluded, common indentation
+ * removed). Throws when the region is missing, so a renamed region fails the page instead of showing nothing.
+ */
+export function pyRegion(source: string, name: string): string {
+  const lines = source.split("\n");
+  const start = lines.findIndex((l) => l.trim() === `# region ${name}`);
+  if (start < 0) throw new Error(`pyRegion: no "# region ${name}"`);
+  const end = lines.findIndex((l, i) => i > start && l.trim() === "# endregion");
+  if (end < 0) throw new Error(`pyRegion: "# region ${name}" has no "# endregion"`);
+  const body = lines.slice(start + 1, end);
+  const indent = Math.min(...body.filter((l) => l.trim()).map((l) => l.length - l.trimStart().length));
+  return body.map((l) => l.slice(indent)).join("\n").replace(/^\n+|\n+$/g, "");
 }
 
 /** A figure (inline SVG, a canvas, or an interactive demo) with a caption. Wide content scrolls inside it on phones. */

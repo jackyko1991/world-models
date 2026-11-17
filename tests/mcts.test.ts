@@ -1,8 +1,17 @@
 /** UCT MCTS on tic-tac-toe: takes a forced win, blocks a forced loss, and its tree statistics add up. */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
-import { bestMove, legal, newNode, iterate, toMove, unroll, winner, type MctsNode } from "../src/models/mcts.ts";
-import { rng } from "../src/models/rng.ts";
+import { backup, bestMove, legal, newNode, iterate, play, select, toMove, uct, unroll, winner, type Board, type MctsNode } from "../src/models/mcts.ts";
+import { randInt, rng } from "../src/models/rng.ts";
+
+/** Write python/tests/fixtures/<name>.json with UPDATE_FIXTURES=1; otherwise assert it matches the current output. */
+function checkFixture(name: string, data: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(data) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+}
 
 const _ = 0;
 const X = 1;
@@ -48,4 +57,47 @@ test("MuZero unroll: one prediction per hidden state, rewards from g", () => {
   );
   assert.deepEqual(out.map((p) => p.value), [3, 4, 4, 5]);
   assert.deepEqual(out.map((p) => p.reward), [0, 1, 0, 1]);
+});
+
+test("fixture for the Python port: rules on many boards, UCT scores, selection and a backup on a given tree", () => {
+  // boards from random games, every position along the way
+  const r = rng(31);
+  const boards: Board[] = [];
+  for (let g = 0; g < 12; g++) {
+    let b: Board = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+    boards.push(b);
+    for (let moves = legal(b); moves.length > 0; moves = legal(b)) boards.push((b = play(b, moves[randInt(r, moves.length)])));
+  }
+  const rules = boards.map((b) => ({ board: b, winner: winner(b), toMove: toMove(b), legal: legal(b), play: legal(b).map((i) => play(b, i)) }));
+  // a two-level tree with given statistics: root, its children, and the children of the first child
+  const root = newNode([X, _, O, X, _, _, _, _, O]);
+  const stats: [number, number][] = [[7, 3], [3, 2], [12, 5], [2, -1], [5, 1]];
+  for (const [k, move] of [...root.untried].entries()) {
+    const child = newNode(play(root.board, move), move, root);
+    [child.n, child.w] = stats[k];
+    root.children.push(child);
+  }
+  root.untried = [];
+  root.n = 1 + stats.reduce((s, [n]) => s + n, 0);
+  const first = root.children[0];
+  for (const [k, move] of [...first.untried].entries()) {
+    const child = newNode(play(first.board, move), move, first);
+    [child.n, child.w] = [1 + k, k % 2 ? -1 : 1];
+    first.children.push(child);
+  }
+  first.untried = [];
+  const tree = {
+    board: root.board,
+    n: root.n,
+    children: root.children.map((c) => ({ move: c.move, n: c.n, w: c.w, children: c.children.map((g) => ({ move: g.move, n: g.n, w: g.w })) })),
+  };
+  const ucts = [Math.SQRT2, 0.5].map((c) => ({ c, scores: root.children.map((ch) => uct(ch, c)), selected: select(root, c).map((nd) => nd.move) }));
+  const path = select(root);
+  backup(path, -1);
+  checkFixture("mcts", {
+    rules,
+    tree,
+    ucts,
+    backup: { path: path.map((nd) => nd.move), result: -1, after: path.map((nd) => ({ n: nd.n, w: nd.w })) },
+  });
 });

@@ -5,7 +5,8 @@ import CartpoleDemo from "../../demos/CartpoleDemo.tsx";
 import GridworldDemo from "../../demos/GridworldDemo.tsx";
 import RolloutFan from "../../demos/RolloutFan.tsx";
 import { COLOR } from "../../demos/RolloutPlot.tsx";
-import { Callout, Eq, Figure, HistoryLinks, List, P, Page, Section, SiteLink, Sources, Table } from "../kit.tsx";
+import { CartpolePicture, CompoundingPicture, ErrorSplitPicture, KalmanCorrectPicture, KalmanPredictPicture, RolloutPicture, RssmPicture, TransitionPicture, UncertaintyPicture } from "../../demos/pictures/FoundationsPictures.tsx";
+import { Callout, Figure, HistoryLinks, List, P, Page, Pictured, Section, SiteLink, Sources, Table } from "../kit.tsx";
 
 const OUTLINE = CONCEPT_OUTLINES.find((o) => o.id === "foundations")!;
 const PAGE = "foundations";
@@ -86,7 +87,15 @@ function Loop() {
           "機器學習把這件事說得更精確。世界在時間 $t$ 有一個**狀態** $s_t$；智能體採取一個**動作** $a_t$。世界模型最多有三個部分：",
         ]}
       />
-      <Eq tex={"s_{t+1} \\sim p(s_{t+1} \\mid s_t, a_t), \\qquad o_t \\sim p(o_t \\mid s_t), \\qquad r_t = r(s_t, a_t)"} />
+      <Pictured
+        tex={"s_{t+1} \\sim p(s_{t+1} \\mid s_t, a_t), \\qquad o_t \\sim p(o_t \\mid s_t), \\qquad r_t = r(s_t, a_t)"}
+        caption={[
+          "From state $s_t$, action $a_t$ leads not to one next state but to a spread of them: dot area is probability $p(s_{t+1} \\mid s_t, a_t)$ (one point if the world is deterministic). The state also produces what the agent sees, $o_t$, and the step earns a reward $r_t$.",
+          "從狀態 $s_t$ 出發，動作 $a_t$ 帶來的不是單一的下一個狀態，而是一群可能的狀態：圓點面積就是機率 $p(s_{t+1} \\mid s_t, a_t)$（若世界是確定性的，就只剩一點）。狀態也產生智能體看到的 $o_t$，這一步則得到獎勵 $r_t$。",
+        ]}
+      >
+        <TransitionPicture />
+      </Pictured>
       <List
         items={[
           ["the **transition model** $p(s' \\mid s, a)$: a probability distribution over the next state $s'$ given the state and action (a point mass if the world is deterministic);", "**轉移模型** $p(s' \\mid s, a)$：給定狀態與動作時，下一個狀態 $s'$ 的機率分布（若世界是確定性的，它就是單一點上的機率質量）；"],
@@ -153,21 +162,45 @@ function Rollouts() {
           "能預測一步的模型很有用；能預測五十步的模型，才是規劃所需要的。要往前看 $H$ 步，就在迴圈中呼叫單步模型，並把每次的預測當成下一次的輸入餵回去。這個迴圈就是**推演**（rollout）：",
         ]}
       />
-      <Eq tex={"\\hat s_0 = s_0, \\qquad \\hat s_{t+1} = \\hat f(\\hat s_t, a_t), \\quad t = 0, 1, \\dots, H-1"} />
+      <Pictured
+        tex={"\\hat s_0 = s_0, \\qquad \\hat s_{t+1} = \\hat f(\\hat s_t, a_t), \\quad t = 0, 1, \\dots, H-1"}
+        caption={[
+          "A rollout is a chain: the model $\\hat f$ turns each prediction $\\hat s_t$ and action $a_t$ into the next prediction. Only $s_0$ is real; the true states (faint, above) drift away and are never fed back in.",
+          "推演是一條鏈：模型 $\\hat f$ 把每個預測 $\\hat s_t$ 與動作 $a_t$ 變成下一個預測。只有 $s_0$ 是真的；真實狀態（上方淡色）漸漸偏離，而且從不回饋進來。",
+        ]}
+      >
+        <RolloutPicture />
+      </Pictured>
       <P
         t={[
           "Here $\\hat f$ is the learned model and $f$ the true dynamics. The catch is in the hats: after the first step the model never sees a true state again. Write the error as $e_t = \\hat s_t - s_t$ and split one step of it in two:",
           "這裡 $\\hat f$ 是學到的模型，$f$ 是真實的動態。關鍵在那些「帽子」：第一步之後，模型再也看不到真實的狀態。把誤差寫成 $e_t = \\hat s_t - s_t$，並把其中一步拆成兩部分：",
         ]}
       />
-      <Eq tex={"e_{t+1} = \\underbrace{\\hat f(\\hat s_t, a_t) - \\hat f(s_t, a_t)}_{\\text{old error, carried forward}} + \\underbrace{\\hat f(s_t, a_t) - f(s_t, a_t)}_{\\text{new one-step error}}"} />
+      <Pictured
+        tex={"e_{t+1} = \\underbrace{\\hat f(\\hat s_t, a_t) - \\hat f(s_t, a_t)}_{\\text{old error, carried forward}} + \\underbrace{\\hat f(s_t, a_t) - f(s_t, a_t)}_{\\text{new one-step error}}"}
+        caption={[
+          "One step of error, split in two. Gray: the truth $s_t \\to s_{t+1}$; amber: the model, applied to the true state ($\\hat f(s_t)$, hollow) and to its own prediction ($\\hat s_{t+1}$). The gap $e_{t+1}$ is the fresh one-step error plus the old error $e_t$ carried forward.",
+          "把一步的誤差拆成兩段。灰色：真實的 $s_t \\to s_{t+1}$；琥珀色：模型分別作用在真實狀態上（$\\hat f(s_t)$，空心點）與自己的預測上（$\\hat s_{t+1}$）。差距 $e_{t+1}$ 等於新的單步誤差，加上被帶過來的舊誤差 $e_t$。",
+        ]}
+      >
+        <ErrorSplitPicture />
+      </Pictured>
       <P
         t={[
           "If the model's one-step error is at most $\\varepsilon$ and it stretches distances by at most a factor $L$ per step (its Lipschitz constant), then $\\|e_{t+1}\\| \\le L\\|e_t\\| + \\varepsilon$, and so",
           "如果模型的單步誤差最多是 $\\varepsilon$，而且每一步最多把距離拉長 $L$ 倍（它的利普希茨常數），那麼 $\\|e_{t+1}\\| \\le L\\|e_t\\| + \\varepsilon$，因此",
         ]}
       />
-      <Eq tex={"\\|e_H\\| \\le \\varepsilon\\,(1 + L + \\dots + L^{H-1}) = \\varepsilon\\,\\frac{L^H - 1}{L - 1}"} />
+      <Pictured
+        tex={"\\|e_H\\| \\le \\varepsilon\\,(1 + L + \\dots + L^{H-1}) = \\varepsilon\\,\\frac{L^H - 1}{L - 1}"}
+        caption={[
+          "Gray: the true path; amber dashed: the rollout, here with $L = 1.8$. At every step the old gap is stretched by $L$ (gray part of each bar) and a fresh $\\varepsilon$ is added on top (amber part), so by step $H$ the gap is $\\varepsilon(L^H - 1)/(L - 1)$.",
+          "灰色：真實路徑；琥珀色虛線：推演，這裡 $L = 1.8$。每一步，舊的差距被放大 $L$ 倍（每根長條的灰色部分），再加上新的 $\\varepsilon$（琥珀色部分），所以到第 $H$ 步，差距是 $\\varepsilon(L^H - 1)/(L - 1)$。",
+        ]}
+      >
+        <CompoundingPicture />
+      </Pictured>
       <P
         t={[
           "With $L < 1$ (a system that forgets) the error levels off near $\\varepsilon/(1-L)$. With $L = 1$ it grows in proportion to $H$. With $L > 1$, an unstable system such as a pole balanced upright, it grows **exponentially**: the model is fed its own mistakes, and the dynamics amplify them. This is **compounding error**, and it is why a small one-step loss does not guarantee a useful long-horizon model.",
@@ -180,7 +213,15 @@ function Rollouts() {
           "示範使用**倒單擺小車**（cart-pole）：一台在軌道上的小車，頂上鉸接一根擺桿，是經典的控制基準問題。小車質量 $m_c = 1$ kg、擺桿質量 $m = 0.1$ kg、擺桿半長 $l = 0.5$ m、推力 $F$、$M = m_c + m$，無摩擦的運動方程為",
         ]}
       />
-      <Eq tex={"\\ddot\\theta = \\frac{g\\sin\\theta - \\cos\\theta\\,\\dfrac{F + m l \\dot\\theta^2 \\sin\\theta}{M}}{l\\left(\\tfrac43 - \\dfrac{m\\cos^2\\theta}{M}\\right)}, \\qquad \\ddot x = \\frac{F + m l(\\dot\\theta^2\\sin\\theta - \\ddot\\theta\\cos\\theta)}{M}"} />
+      <Pictured
+        tex={"\\ddot\\theta = \\frac{g\\sin\\theta - \\cos\\theta\\,\\dfrac{F + m l \\dot\\theta^2 \\sin\\theta}{M}}{l\\left(\\tfrac43 - \\dfrac{m\\cos^2\\theta}{M}\\right)}, \\qquad \\ddot x = \\frac{F + m l(\\dot\\theta^2\\sin\\theta - \\ddot\\theta\\cos\\theta)}{M}"}
+        caption={[
+          "The cart-pole: force $F$ pushes the cart (mass $m_c$) along the rail, position $x$; the pole (mass $m$) leans at angle $\\theta$ from upright, and gravity $mg$ pulls at its centre, a distance $l$ from the hinge. Away from $\\theta = 0$, gravity tips it further over.",
+          "倒單擺小車：推力 $F$ 沿軌道推動小車（質量 $m_c$，位置 $x$）；擺桿（質量 $m$）與鉛直方向夾角 $\\theta$，重力 $mg$ 作用在它的中點，離鉸點距離 $l$。只要偏離 $\\theta = 0$，重力就會讓它倒得更多。",
+        ]}
+      >
+        <CartpolePicture />
+      </Pictured>
       <P
         t={[
           "The true simulator integrates these with fourth-order Runge–Kutta at $\\Delta t = 0.02$ s. The learned model is **linear**, $\\hat s' = A s + B F + c$ with $s = (x, \\dot x, \\theta, \\dot\\theta)$, its weights fitted once by least squares to 2000 simulated steps from states near upright. Its one-step error there is about $10^{-5}$. Around upright the pole's small deviations grow by about $e^{3.97\\,\\Delta t} \\approx 1.08$ per step (from linearising the equation above), so even that tiny error roughly doubles every nine steps.",
@@ -209,8 +250,24 @@ function Rollouts() {
           "真實系統怎麼控制這個問題？最古老的答案是：不要長時間盲目推演，而是每來一個新觀測就**先預測、再修正**。卡爾曼濾波器（1960）正是為線性模型 $x_{t+1} = A x_t + B u_t + w_t$ 做這件事，其觀測為 $y_t = H x_t + v_t$，過程雜訊共變異數為 $Q$、量測雜訊共變異數為 $R$。它維護一個平均值 $\\hat x$ 與一個共變異數 $P$：",
         ]}
       />
-      <Eq tex={"\\text{predict:}\\quad \\hat x_{t\\mid t-1} = A\\hat x_{t-1\\mid t-1} + B u_{t-1}, \\qquad P_{t\\mid t-1} = A P_{t-1\\mid t-1} A^\\top + Q"} />
-      <Eq tex={"\\text{correct:}\\quad K_t = P_{t\\mid t-1} H^\\top (H P_{t\\mid t-1} H^\\top + R)^{-1}, \\quad \\hat x_{t\\mid t} = \\hat x_{t\\mid t-1} + K_t\\,(y_t - H\\hat x_{t\\mid t-1}), \\quad P_{t\\mid t} = (I - K_t H) P_{t\\mid t-1}"} />
+      <Pictured
+        tex={"\\text{predict:}\\quad \\hat x_{t\\mid t-1} = A\\hat x_{t-1\\mid t-1} + B u_{t-1}, \\qquad P_{t\\mid t-1} = A P_{t-1\\mid t-1} A^\\top + Q"}
+        caption={[
+          "Predict: the belief about $x$ (amber) is moved to $A\\hat x + Bu$ and spreads out, first as $A P A^\\top$ (dashed bar), then wider by the process noise $Q$. Without a measurement, every step makes it wider.",
+          "預測：對 $x$ 的信念（琥珀色）被移到 $A\\hat x + Bu$，並且變寬：先是 $A P A^\\top$（虛線長條），再因過程雜訊 $Q$ 更寬。沒有量測時，每一步都讓它更寬。",
+        ]}
+      >
+        <KalmanPredictPicture />
+      </Pictured>
+      <Pictured
+        tex={"\\text{correct:}\\quad K_t = P_{t\\mid t-1} H^\\top (H P_{t\\mid t-1} H^\\top + R)^{-1}, \\quad \\hat x_{t\\mid t} = \\hat x_{t\\mid t-1} + K_t\\,(y_t - H\\hat x_{t\\mid t-1}), \\quad P_{t\\mid t} = (I - K_t H) P_{t\\mid t-1}"}
+        caption={[
+          "Correct (with $H = 1$): the wide prediction (amber dashed) and the measurement $y_t$ with noise $R$ (gray) combine into the narrow corrected estimate (filled), which sits a fraction $K_t$ of the way along the gap $y_t - H\\hat x$. The noisier the sensor, the smaller $K_t$.",
+          "修正（取 $H = 1$）：寬的預測（琥珀色虛線）與帶有雜訊 $R$ 的量測 $y_t$（灰色）結合成較窄的修正後估計（填色），它落在差距 $y_t - H\\hat x$ 的 $K_t$ 比例處。感測器雜訊越大，$K_t$ 越小。",
+        ]}
+      >
+        <KalmanCorrectPicture />
+      </Pictured>
       <P
         t={[
           "The prediction step is a one-step rollout that also tracks how uncertain it is; the correction pulls the estimate toward the measurement, weighted by the **Kalman gain** $K_t$, which is large when the prediction is uncertain and small when the sensor is noisy. Learned latent world models keep the same two steps: a **prior** over the next latent predicted from the past, and a **posterior** corrected by the new observation. When the model imagines the future for planning, there is no observation to correct it, which is exactly the situation in the demo above.",
@@ -261,7 +318,15 @@ function Uncertainty() {
           "若用 $m$ 表示可能的模型（例如集成中的各個成員），全變異數定律會把一個預測的變異數恰好拆成這兩部分：",
         ]}
       />
-      <Eq tex={"\\operatorname{Var}[s'] = \\underbrace{\\mathbb{E}_m\\big[\\operatorname{Var}[s' \\mid m]\\big]}_{\\text{aleatoric: each model's noise}} + \\underbrace{\\operatorname{Var}_m\\big[\\mathbb{E}[s' \\mid m]\\big]}_{\\text{epistemic: models disagree}}"} />
+      <Pictured
+        tex={"\\operatorname{Var}[s'] = \\underbrace{\\mathbb{E}_m\\big[\\operatorname{Var}[s' \\mid m]\\big]}_{\\text{aleatoric: each model's noise}} + \\underbrace{\\operatorname{Var}_m\\big[\\mathbb{E}[s' \\mid m]\\big]}_{\\text{epistemic: models disagree}}"}
+        caption={[
+          "Five models of the next state $s'$. On the training data (gray band) they agree, and what remains is the noise band each one predicts: aleatoric. Beyond the data they fan apart: that spread of their means, $\\operatorname{Var}_m$, is epistemic.",
+          "五個預測下一個狀態 $s'$ 的模型。在訓練資料上（灰色帶）它們一致，剩下的是各自預測的雜訊帶：偶然性。超出資料後它們散開：平均值之間的分散 $\\operatorname{Var}_m$ 就是認知性。",
+        ]}
+      >
+        <UncertaintyPicture />
+      </Pictured>
       <P
         t={[
           "Three kinds of model, in increasing honesty. A **deterministic** model predicts one next state. A **stochastic** model predicts a distribution, here a Gaussian $\\mathcal N(\\hat f(s, a), \\hat\\sigma^2)$, and so represents aleatoric noise; but it is still one model, as sure of itself far from its data as on it. An **ensemble** trains $K$ models on resampled data with different random initialisations. Where the data constrains them they agree; beyond it each extrapolates its own way, and their **disagreement** marks the edge of the data. PETS (Chua et al., 2018) combined both: an ensemble of probabilistic networks, with each imagined trajectory following one member (\"trajectory sampling\"), and planned with the cross-entropy method.",
@@ -302,7 +367,15 @@ function Uncertainty() {
           "潛在世界模型把不確定性直接放進狀態裡。PlaNet 與 Dreamer 的**遞迴狀態空間模型**（RSSM）把狀態分成確定性的記憶 $h_t$ 與隨機的潛在變數 $z_t$：",
         ]}
       />
-      <Eq tex={"h_t = f(h_{t-1}, z_{t-1}, a_{t-1}), \\qquad \\text{prior } \\hat z_t \\sim p(\\hat z_t \\mid h_t), \\qquad \\text{posterior } z_t \\sim q(z_t \\mid h_t, o_t)"} />
+      <Pictured
+        tex={"h_t = f(h_{t-1}, z_{t-1}, a_{t-1}), \\qquad \\text{prior } \\hat z_t \\sim p(\\hat z_t \\mid h_t), \\qquad \\text{posterior } z_t \\sim q(z_t \\mid h_t, o_t)"}
+        caption={[
+          "The RSSM unrolled: squares are the deterministic memory $h$, carried by $f$ along the top; circles are the stochastic latent $z$ (halo: its spread). With an observation $o_t$ the latent is the posterior $q$; in the imagined step there is no $o$, so only the prior $p$ gives $\\hat z_{t+1}$ (dashed).",
+          "展開的 RSSM：方塊是確定性記憶 $h$，由 $f$ 沿上排傳下去；圓圈是隨機潛在變數 $z$（光暈表示其分散程度）。有觀測 $o_t$ 時，潛在變數是後驗 $q$；在想像的步驟中沒有 $o$，只能由先驗 $p$ 給出 $\\hat z_{t+1}$（虛線）。",
+        ]}
+      >
+        <RssmPicture />
+      </Pictured>
       <P
         t={[
           "The deterministic path carries information reliably over many steps; the stochastic latent lets the model represent several possible futures. The prior and posterior are the Kalman filter's predict and correct, learned; while imagining, only the prior is available. The PlaNet paper's experiments found both paths crucial for successful planning: dropping either one did worse.",

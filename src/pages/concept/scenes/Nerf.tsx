@@ -2,7 +2,8 @@
 import FourierFit from "../../../demos/FourierFit.tsx";
 import NerfOrbit from "../../../demos/NerfOrbit.tsx";
 import { Question, Sub } from "../../../demos/SectionText.tsx";
-import { Callout, Eq, Figure, HistoryLinks, List, P, Section, SiteLink, Sources } from "../../kit.tsx";
+import { Callout, Figure, HistoryLinks, List, P, Pictured, Section, SiteLink, Sources } from "../../kit.tsx";
+import { NerfEncodingPicture, NerfFieldPicture } from "../../../demos/pictures/NerfPictures.tsx";
 
 export default function Nerf({ n }: { n: number }) {
   return (
@@ -19,7 +20,15 @@ export default function Nerf({ n }: { n: number }) {
           "上一節渲染的是我們親手寫下的場：四個團塊。NeRF（Mildenhall 等人，2020）問的是反方向的問題：給定從已知相機拍的照片，把這個場找出來。它的答案是讓一個神經網路**就是**那個場，並透過可微分的體積渲染總和來擬合它。",
         ]}
       />
-      <Eq tex="F_\Theta : (\mathbf{x}, \mathbf{d}) \mapsto (\sigma, \mathbf{c}), \qquad \mathcal{L}(\Theta) = \sum_{\mathbf{r} \in \text{batch}} \big\| \hat{C}_\Theta(\mathbf{r}) - C_{\text{photo}}(\mathbf{r}) \big\|^2." />
+      <Pictured
+        tex="F_\Theta : (\mathbf{x}, \mathbf{d}) \mapsto (\sigma, \mathbf{c}), \qquad \mathcal{L}(\Theta) = \sum_{\mathbf{r} \in \text{batch}} \big\| \hat{C}_\Theta(\mathbf{r}) - C_{\text{photo}}(\mathbf{r}) \big\|^2."
+        caption={[
+          "A point $\\mathbf{x}$ on a camera ray and the direction $\\mathbf{d}$ it is seen from go into the network $F_\\Theta$, which answers with a density $\\sigma$ and a colour $\\mathbf{c}$. The volume sum along the ray turns those answers into a pixel $\\hat{C}_\\Theta(\\mathbf{r})$; training pulls it towards the photo's pixel.",
+          "相機光線上的一點 $\\mathbf{x}$ 與看它的方向 $\\mathbf{d}$ 輸入網路 $F_\\Theta$，網路回答一個密度 $\\sigma$ 和一個顏色 $\\mathbf{c}$。沿光線的體積總和把這些答案變成像素 $\\hat{C}_\\Theta(\\mathbf{r})$；訓練則把它拉向照片中的像素。",
+        ]}
+      >
+        <NerfFieldPicture />
+      </Pictured>
       <List
         items={[
           [
@@ -50,7 +59,15 @@ export default function Nerf({ n }: { n: number }) {
           "直接餵入原始座標，網路會渲染出模糊的場景。原因是以梯度下降訓練的網路的一個普遍性質，**頻譜偏差**（Rahaman 等人，2019）：它們先學會函數中低頻、變化緩慢的部分，高頻（銳利的邊緣、細緻的紋理）則學得非常慢。NeRF 的解法是把每個座標 $p$ 送進頻率逐次加倍的正弦與餘弦：",
         ]}
       />
-      <Eq tex="\gamma(p) = \big(\sin(2^0\pi p), \cos(2^0\pi p), \;\dots,\; \sin(2^{L-1}\pi p), \cos(2^{L-1}\pi p)\big)." />
+      <Pictured
+        tex="\gamma(p) = \big(\sin(2^0\pi p), \cos(2^0\pi p), \;\dots,\; \sin(2^{L-1}\pi p), \cos(2^{L-1}\pi p)\big)."
+        caption={[
+          "One coordinate $p$ is read off by sines (solid) and cosines (dashed) whose frequency doubles each row. Where the line at $p$ crosses the waves gives the features on the right: a small move in $p$ barely changes the slow rows but swings the fast ones.",
+          "一個座標 $p$ 由頻率逐列加倍的正弦（實線）與餘弦（虛線）讀出。$p$ 處的直線與各條波的交點，就是右側的特徵：$p$ 稍微移動，慢的幾列幾乎不變，快的幾列卻大幅擺動。",
+        ]}
+      >
+        <NerfEncodingPicture />
+      </Pictured>
       <P
         t={[
           "NeRF uses $L = 10$ for $\\mathbf{x}$ and $L = 4$ for $\\mathbf{d}$. A high-frequency wiggle in $p$ is now a slow, nearly linear function of some feature, which the network learns easily. Tancik et al. (2020) explained why through the network's neural tangent kernel and showed that the frequencies act as a dial: too low and the fit is blurry, too high and it is noisy between the training points.",
@@ -89,8 +106,8 @@ export default function Nerf({ n }: { n: number }) {
       <Sub t={["A tiny NeRF you can orbit", "一個可以環繞的極小 NeRF"]} />
       <P
         t={[
-          "Below is a real, if very small, NeRF. A script built a scene from a floor, two spheres and a box, rendered 40 photos of it at 48×48 pixels, and trained an MLP $\\gamma(\\mathbf{x}) \\mapsto (\\sigma, \\mathbf{c})$ on them through the volume-rendering sum. Your browser now runs that network for every sample of every pixel, with plain loops in TypeScript.",
-          "下面是一個真正的 NeRF，只是非常小。一支腳本用一塊地板、兩顆球與一個方塊搭出場景，以 48×48 像素拍了 40 張照片，再透過體積渲染總和，在這些照片上訓練一個 MLP $\\gamma(\\mathbf{x}) \\mapsto (\\sigma, \\mathbf{c})$。現在你的瀏覽器以 TypeScript 的普通迴圈，對每個像素的每個取樣點執行這個網路。",
+          "Below is a real, if very small, NeRF. A script built a scene from a floor, two spheres and a box, rendered 40 photos of it at 48×48 pixels, and trained an MLP $\\gamma(\\mathbf{x}) \\mapsto (\\sigma, \\mathbf{c})$ on them through the volume-rendering sum. Your browser now runs that network for every sample of every pixel: the same model as `python/wm/nerf_tiny.py`, ported to TypeScript and written as plain loops.",
+          "下面是一個真正的 NeRF，只是非常小。一支腳本用一塊地板、兩顆球與一個方塊搭出場景，以 48×48 像素拍了 40 張照片，再透過體積渲染總和，在這些照片上訓練一個 MLP $\\gamma(\\mathbf{x}) \\mapsto (\\sigma, \\mathbf{c})$。現在你的瀏覽器對每個像素的每個取樣點執行這個網路：與 `python/wm/nerf_tiny.py` 相同的模型，移植到 TypeScript，寫成普通迴圈。",
         ]}
       />
       <Figure

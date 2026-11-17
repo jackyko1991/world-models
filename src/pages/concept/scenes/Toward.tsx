@@ -1,7 +1,8 @@
 /** Concepts ▸ 3D scene models ▸ section "toward": NeRF and 3DGS compared, moving scenes, and where they meet world models. */
 import { RichText, useLang } from "@learnkit/web";
 import MovingSplats from "../../../demos/MovingSplats.tsx";
-import { Eq, Evidence, Figure, HistoryLinks, List, P, Section, SiteLink, Sources, Table, type L } from "../../kit.tsx";
+import TowardDeform from "../../../demos/pictures/TowardDeform.tsx";
+import { Evidence, Figure, HistoryLinks, List, P, Pictured, Section, SiteLink, Sources, Table, type L } from "../../kit.tsx";
 
 function Txt({ t }: { t: L }) {
   const { pick } = useLang();
@@ -54,7 +55,15 @@ export default function Toward({ n }: { n: number }) {
           "兩種表示法都以同樣的方式延伸到時間：保留一個**標準（canonical）**場景，再學一個**形變**，說明每個部分在時間 $t$ 位於哪裡。D-NeRF（Pumarola 等人，2020）學一個網路，把時間 $t$ 的點映回標準空間，再在那裡查詢普通的 NeRF。四維高斯潑濺（4D-GS，Wu 等人，2023）保留一組標準高斯，並從一個分解的四維體素網格（仿 HexPlane）的特徵加上一個小型多層感知器，預測每個高斯在時間 $t$ 如何移動、旋轉與伸縮：",
         ]}
       />
-      <Eq tex="\mu(t) = \mu_0 + \Delta\mu(\mu_0, t),\qquad q(t) = \Delta q(\mu_0, t)\otimes q_0,\qquad s(t) = s_0 + \Delta s(\mu_0, t)." />
+      <Pictured
+        tex="\mu(t) = \mu_0 + \Delta\mu(\mu_0, t),\qquad q(t) = \Delta q(\mu_0, t)\otimes q_0,\qquad s(t) = s_0 + \Delta s(\mu_0, t)."
+        caption={[
+          "Canonical Gaussians (gray, dashed, $t = 0$) and where the deformation puts them at $t_1$ and $t_2$ (amber): each mean slides by $\Delta\mu$ along a short path; one Gaussian also turns, $q(t)$, another stretches, $s(t)$. Drawn by hand, not learned.",
+          "標準高斯（灰色虛線，$t = 0$），以及形變在 $t_1$、$t_2$ 把它們放到的位置（琥珀色）：每個平均沿短路徑移動 $\Delta\mu$；其中一個還會旋轉，$q(t)$，另一個會伸長，$s(t)$。圖是手繪的，不是學出來的。",
+        ]}
+      >
+        <TowardDeform />
+      </Pictured>
       <P
         t={[
           "4D-GS reports real-time rendering of dynamic scenes, 82 frames per second at 800×800 on an RTX 3090. In the demo below the deformation is written by hand instead of learned: a ball bounces (and squashes near the floor), a box spins, and its Gaussians turn with it, a small moon orbits.",
@@ -63,8 +72,8 @@ export default function Toward({ n }: { n: number }) {
       />
       <Figure
         caption={[
-          "**A moving Gaussian scene.** About 1060 canonical Gaussians and a deformation field $\\mu(t), q(t)$ written by hand (`dynamicScene` and `deform` in `src/models/splat.ts`), drawn by the same renderer as the scene above. **Show paths** traces where some of the means go over the whole clip. A toy: nothing here is learned from video.",
-          "**一個會動的高斯場景。** 約 1060 個標準高斯，加上一個手寫的形變場 $\\mu(t), q(t)$（`src/models/splat.ts` 中的 `dynamicScene` 與 `deform`），由與上面場景相同的渲染器繪製。**顯示軌跡**會描出部分平均點在整段片段中的去向。這是玩具：這裡沒有任何東西是從影片學來的。",
+          "**A moving Gaussian scene.** About 1060 canonical Gaussians and a deformation field $\\mu(t), q(t)$ written by hand (`deform` in `python/wm/splat.py`; the demo runs the same model, ported to TypeScript), drawn by the same renderer as the scene above. **Show paths** traces where some of the means go over the whole clip. A toy: nothing here is learned from video.",
+          "**一個會動的高斯場景。** 約 1060 個標準高斯，加上一個手寫的形變場 $\\mu(t), q(t)$（`python/wm/splat.py` 中的 `deform`；示範執行的是同一個模型，移植成 TypeScript），由與上面場景相同的渲染器繪製。**顯示軌跡**會描出部分平均點在整段片段中的去向。這是玩具：這裡沒有任何東西是從影片學來的。",
         ]}
       >
         <MovingSplats />

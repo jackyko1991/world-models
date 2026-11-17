@@ -1,10 +1,11 @@
 /**
  * The tiny NeRF: the TS forward pass reproduces what scripts/tiny_nerf.py computed (float64 numpy, from the same
  * rounded weights) for σ and rgb at fixed points and for whole rendered pixels, within 1e-4; the asset stays under
- * 2 MB and 50k parameters; and early ray termination changes a pixel by no more than its threshold.
+ * 2 MB and 50k parameters; and early ray termination changes a pixel by no more than its threshold. With
+ * UPDATE_FIXTURES=1 it writes python/tests/fixtures/nerf_tiny.json for the Python model to match; otherwise it checks it.
  */
 import assert from "node:assert/strict";
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { field, loadNerf, parameterCount, positionalEncoding, renderPixel, type TinyNerfData } from "../src/models/nerfTiny.ts";
 import { orbitCamera } from "../src/models/volumeRender.ts";
@@ -54,4 +55,33 @@ test("early ray termination changes a pixel by at most its threshold", () => {
       const fast = renderPixel(m, cam, i, j, 1e-3);
       full.forEach((x, k) => assert.ok(Math.abs(x - fast[k]) <= 1e-3 + 1e-12));
     }
+});
+
+/** Write (UPDATE_FIXTURES=1) or check python/tests/fixtures/<name>.json, which the Python tests match. */
+function fixture(name: string, value: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(value) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `${name}.json is stale: run UPDATE_FIXTURES=1 node --test`);
+}
+
+test("fixture for the Python model (python/tests/fixtures/nerf_tiny.json)", () => {
+  const points = [
+    [0.25, -0.5, 1],
+    [0, 0, 0],
+    [0.3, 0.2, -0.4],
+    [-0.9, -0.6, 0.7],
+    [1.1, 1.1, -1.1],
+  ];
+  const camera = { azimuth: 0.9, elevation: 0.4 };
+  const cam = camFor(camera.azimuth, camera.elevation);
+  const pixels = [[24, 24], [10, 30], [0, 0], [40, 12], [17, 44], [33, 33]].map(([i, j]) => ({ i, j, rgb: renderPixel(m, cam, i, j) }));
+  fixture("nerf_tiny", {
+    frequencies: data.encoding.frequencies,
+    points,
+    encoding: points.map((p) => [...positionalEncoding(p, data.encoding.frequencies)]),
+    field: points.map((p) => field(m, p)),
+    camera,
+    pixels,
+  });
 });

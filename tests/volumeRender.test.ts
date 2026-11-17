@@ -1,12 +1,14 @@
 /**
  * Volume rendering: the quadrature's weights sum to 1 − T_final, a uniform slab matches the analytic transmittance
  * e^{−σL}, the pixel converges as samples are added, camera rays point where they should, and hierarchical samples
- * gather where the weights are.
+ * gather where the weights are. With UPDATE_FIXTURES=1 it writes python/tests/fixtures/volume_render.json (inputs and
+ * outputs for the Python model to match); otherwise it checks that file is current.
  */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { rng } from "../src/models/rng.ts";
-import { blobField, cameraRay, marchField, orbitCamera, over, rayBox, renderRay, sampleAlong, samplePdf, type Blob } from "../src/models/volumeRender.ts";
+import { blobField, cameraRay, deltas, marchField, orbitCamera, over, rayBox, renderRay, sampleAlong, samplePdf, type Blob } from "../src/models/volumeRender.ts";
 
 const BLOBS: Blob[] = [
   { centre: [0.2, 0.1], radius: 0.15, peak: 8, colour: [0.9, 0.2, 0.1] },
@@ -109,4 +111,63 @@ test("hierarchical sampling puts the fine samples where the weights are", () => 
   assert.ok(inside(fine) > 0.95, `fine ${inside(fine)}`);
   assert.ok(inside(coarse.ts) < 0.45);
   assert.ok(fine.every((t, i) => t >= 0 && t <= 2.5 && (i === 0 || t >= fine[i - 1])));
+});
+
+/** Write (UPDATE_FIXTURES=1) or check python/tests/fixtures/<name>.json, which the Python tests match. */
+function fixture(name: string, value: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(value) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `${name}.json is stale: run UPDATE_FIXTURES=1 node --test`);
+}
+
+/** An Rng that returns the given numbers in turn, so Python can be handed the same "random" draws. */
+const given = (us: number[]) => {
+  let k = 0;
+  return () => us[k++];
+};
+
+test("fixture for the Python model (python/tests/fixtures/volume_render.json)", () => {
+  const r = rng(11);
+  const orbit = { size: 64, fov: 40, radius: 3, azimuth: 0.7, elevation: 0.4 };
+  const cam = orbitCamera(orbit.size, orbit.fov, orbit.radius, orbit.azimuth, orbit.elevation);
+  const pixels = [[0, 0], [31.5, 31.5], [10, 50], [63, 7], [-0.5, 31.5]];
+  const rays = pixels.map(([i, j]) => ({ i, j, ...cameraRay(cam, i, j) }));
+  const boxes = [
+    { o: cam.origin, d: rays[1].d, b: 1 },
+    { o: cam.origin, d: rays[0].d, b: 1.2 },
+    { o: cam.origin, d: rays[1].d.map((x) => -x), b: 1 },
+    { o: [0.1, -0.2, 0.3], d: [0.6, 0.0, 0.8], b: 1 },
+  ].map((c) => ({ ...c, span: rayBox(c.o, c.d, c.b) }));
+  const u = Array.from({ length: 8 }, () => r());
+  const sampling = { near: 1, far: 3, n: 8, u, midpoints: sampleAlong(1, 3, 8), stratified: sampleAlong(1, 3, 8, given(u)) };
+  const rays1d = [3, 12, 40].map((n) => {
+    const ts = sampleAlong(0, 2, n, r);
+    const sigmas = ts.map(() => r() * 10);
+    const colours = ts.map(() => [r(), r(), r()]);
+    return { ts, sigmas, colours, far: 2, deltas: deltas(ts, 2), result: renderRay(sigmas, colours, ts, 2) };
+  });
+  const march = marchField(field, [-1, 0.02], [1, 0], 0, 2.5, 32);
+  const pdfU = Array.from({ length: 16 }, () => r());
+  const pdf = {
+    ts: march.ts,
+    weights: march.weights,
+    near: 0,
+    far: 2.5,
+    n: 16,
+    u: pdfU,
+    even: samplePdf(march.ts, march.weights, 0, 2.5, 16),
+    drawn: samplePdf(march.ts, march.weights, 0, 2.5, 16, given(pdfU)),
+  };
+  fixture("volume_render", {
+    orbit,
+    camera: cam,
+    rays,
+    boxes,
+    sampling,
+    renderRay: rays1d,
+    blobs: BLOBS,
+    march: { o: [-1, 0.02], d: [1, 0], near: 0, far: 2.5, n: 32, ts: march.ts, weights: march.weights, colour: march.colour, tFinal: march.tFinal, over: over(march, [1, 1, 1]) },
+    pdf,
+  });
 });

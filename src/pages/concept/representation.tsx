@@ -2,19 +2,16 @@
 import { CONCEPT_OUTLINES } from "../../curriculum.ts";
 import JepaCollapse from "../../demos/JepaCollapse.tsx";
 import { LatentInterpolation, LatentMapExplorer } from "../../demos/LatentMap.tsx";
-import jepaSrc from "../../models/jepaToy.ts?raw";
-import latentSrc from "../../models/latentMap.ts?raw";
-import { Callout, Code, Eq, Evidence, Figure, HistoryLinks, List, P, Page, Section, SiteLink, Sources, Table } from "../kit.tsx";
+import jepaSrc from "../../../python/wm/jepa_toy.py?raw";
+import latentSrc from "../../../python/wm/latent_map.py?raw";
+import RepresentationJepa from "../../demos/pictures/RepresentationJepa.tsx";
+import RepresentationVae from "../../demos/pictures/RepresentationVae.tsx";
+import RepresentationVicreg from "../../demos/pictures/RepresentationVicreg.tsx";
+import { Callout, Evidence, Figure, HistoryLinks, List, P, Page, Pictured, Py, pyRegion, Section, SiteLink, Sources, Table } from "../kit.tsx";
 
 const OUTLINE = CONCEPT_OUTLINES.find((o) => o.id === "representation")!;
 const PAGE = "representation";
 
-/** The lines between `// #region name` and `// #endregion name` of a source file: a real excerpt, never a paraphrase. */
-function region(src: string, name: string): string {
-  const body = src.split(`// #region ${name}\n`)[1]?.split(`// #endregion ${name}`)[0];
-  if (body === undefined) throw new Error(`no region ${name}`);
-  return body.trimEnd();
-}
 
 const arxiv = (id: string, label: string) => ({ label: `${label} (arXiv:${id})`, url: `https://arxiv.org/abs/${id}` });
 
@@ -39,7 +36,9 @@ function Compress({ n }: { n: number }) {
           "**變分自編碼器（VAE）。** Kingma 與 Welling 的辦法是讓編碼器輸出一個*分布*：每個潛在維度一個平均值 $\\mu(x)$ 和一個標準差 $\\sigma(x)$，即 $q(z \\mid x) = \\mathcal N(\\mu(x), \\operatorname{diag}\\sigma(x)^2)$。訓練時對每個畫面最小化",
         ]}
       />
-      <Eq tex={"\\mathcal L(x) = \\underbrace{\\mathbb E_{z \\sim q(z\\mid x)}\\big[-\\log p(x \\mid z)\\big]}_{\\text{reconstruction}} + \\underbrace{\\mathrm{KL}\\big(q(z \\mid x)\\,\\|\\,\\mathcal N(0, I)\\big)}_{\\text{keep codes near the prior}}, \\qquad \\mathrm{KL} = \\tfrac12 \\sum_j \\big(\\mu_j^2 + \\sigma_j^2 - \\log \\sigma_j^2 - 1\\big)."} />
+      <Pictured tex={"\\mathcal L(x) = \\underbrace{\\mathbb E_{z \\sim q(z\\mid x)}\\big[-\\log p(x \\mid z)\\big]}_{\\text{reconstruction}} + \\underbrace{\\mathrm{KL}\\big(q(z \\mid x)\\,\\|\\,\\mathcal N(0, I)\\big)}_{\\text{keep codes near the prior}}, \\qquad \\mathrm{KL} = \\tfrac12 \\sum_j \\big(\\mu_j^2 + \\sigma_j^2 - \\log \\sigma_j^2 - 1\\big)."} caption={["The encoder squeezes the frame $x$ to a small Gaussian $(\\mu, \\sigma)$ in the latent plane, and $z = \\mu + \\sigma \\odot \\varepsilon$ is one draw from it. The decoder redraws the frame from $z$: the reconstruction term is the gap between $x$ and $\\hat x$, and the KL term pulls the small Gaussian towards the dashed unit circle $\\mathcal N(0, I)$. A drawing, not a trained model.", "編碼器把畫面 $x$ 壓成潛在平面中的一個小高斯 $(\\mu, \\sigma)$，$z = \\mu + \\sigma \\odot \\varepsilon$ 是從中抽出的一個樣本。解碼器從 $z$ 重畫畫面：重建項是 $x$ 與 $\\hat x$ 之間的差距，KL 項則把小高斯拉向虛線單位圓 $\\mathcal N(0, I)$。這是示意圖，不是訓練出的模型。"]}>
+        <RepresentationVae />
+      </Pictured>
       <P
         t={[
           "Here $p(x \\mid z)$ is the decoder read as a probability of the frame (for pixels in $[0, 1]$, a Bernoulli per pixel, so $-\\log p$ is the binary cross-entropy). The KL term pulls every frame's cloud of codes towards a standard normal, so the codes pack into one region without gaps, and any point in that region decodes to something plausible. The sum is the negative of the *evidence lower bound* (ELBO) on $\\log p(x)$.",
@@ -96,16 +95,16 @@ function Compress({ n }: { n: number }) {
       </Figure>
       <P
         t={[
-          "This is the practical reason world models predict in latent space: a step of dynamics in a good code is a small, smooth move, while the same step in pixels is a scattered pattern of changes. The decoder in the demo is a three-layer network run in your browser with plain matrix products:",
-          "這就是世界模型在潛在空間中預測的實際理由：在好的編碼裡，動態的一步是一個小而平滑的移動；同樣一步在像素上卻是零散的一堆變化。示範中的解碼器是一個三層網路，在你的瀏覽器裡用一般的矩陣乘法執行：",
+          "This is the practical reason world models predict in latent space: a step of dynamics in a good code is a small, smooth move, while the same step in pixels is a scattered pattern of changes. The decoder is a three-layer network, nothing but matrix products. Here it is in numpy; the demo runs the same model, ported to TypeScript, in your browser:",
+          "這就是世界模型在潛在空間中預測的實際理由：在好的編碼裡，動態的一步是一個小而平滑的移動；同樣一步在像素上卻是零散的一堆變化。解碼器是一個三層網路，只用到矩陣乘法。下面是它的 numpy 版本；示範在你的瀏覽器裡執行的是同一個模型，移植成 TypeScript：",
         ]}
       />
-      <Code
-        title="src/models/latentMap.ts"
-        code={region(latentSrc, "decode")}
+      <Py
+        title="python/wm/latent_map.py"
+        code={pyRegion(latentSrc, "decode")}
         note={[
-          "Weights from `scripts/latent_map.py` (PyTorch, fixed seed, CPU); a test checks this function reproduces the script's own decodes to within $10^{-4}$.",
-          "權重來自 `scripts/latent_map.py`（PyTorch、固定種子、CPU）；有一項測試確認這個函式與腳本自己的解碼結果相差小於 $10^{-4}$。",
+          "Weights from `scripts/latent_map.py` (PyTorch, fixed seed, CPU), read from `public/models/latent-map.json`; a test checks this function reproduces the script's own decodes to within $10^{-5}$, and that the TypeScript port agrees with it.",
+          "權重來自 `scripts/latent_map.py`（PyTorch、固定種子、CPU），讀自 `public/models/latent-map.json`；有測試確認這個函式與腳本自己的解碼結果相差小於 $10^{-5}$，而且 TypeScript 移植版與它一致。",
         ]}
       />
       <Callout kind="tip" title={["What is lost", "失去了什麼"]}>
@@ -144,7 +143,9 @@ function Jepa({ n }: { n: number }) {
           "**LeCun 的主張（2022）。** 在《通往自主機器智能之路》中，楊立昆把世界模型放在智能體的中心，並主張它應該在**表示空間**中預測。把現在 $x$ 和未來 $y$ 都編碼，$s_x = \\mathrm{Enc}(x)$、$s_y = \\mathrm{Enc}(y)$，再訓練一個預測器把前者映射到後者。這樣編碼器就可以捨去無法預測的部分（葉子），保留可以預測的部分（樹幹）。他稱之為**聯合嵌入預測架構（JEPA）**，並用一個能量為一對資料打分數：",
         ]}
       />
-      <Eq tex={"E(x, y) = D\\big(s_y,\\; \\mathrm{Pred}(s_x, z)\\big),"} />
+      <Pictured tex={"E(x, y) = D\\big(s_y,\\; \\mathrm{Pred}(s_x, z)\\big),"} caption={["The leaves differ between $x$ and $y$, the trunk does not. Both views are encoded; from $s_x$ the predictor, with the latent $z$, lands on $\\hat s_y$, and the energy is the distance $D$ to the target $s_y$, measured in representation space, never in pixels.", "$x$ 與 $y$ 的葉子不同，樹幹相同。兩個畫面都被編碼；預測器從 $s_x$ 出發，加上潛在變數 $z$，落在 $\\hat s_y$，能量就是它到目標 $s_y$ 的距離 $D$——在表示空間中量，而不是在像素上量。"]}>
+        <RepresentationJepa />
+      </Pictured>
       <P
         t={[
           "where $D$ is a distance and $z$ is an optional latent variable for what $x$ alone cannot settle (which way the branch will swing). Training lowers $E$ on real pairs.",
@@ -198,7 +199,9 @@ function Jepa({ n }: { n: number }) {
           ],
         ]}
       />
-      <Eq tex={"v(Z) = \\sum_{j} \\max\\!\\big(0,\\; \\gamma - \\sqrt{\\operatorname{Var}(z_j) + \\epsilon}\\big), \\qquad c(Z) = \\frac{1}{d} \\sum_{i \\ne j} C_{ij}^2 ."} />
+      <Pictured tex={"v(Z) = \\sum_{j} \\max\\!\\big(0,\\; \\gamma - \\sqrt{\\operatorname{Var}(z_j) + \\epsilon}\\big), \\qquad c(Z) = \\frac{1}{d} \\sum_{i \\ne j} C_{ij}^2 ."} caption={["Left: a collapsed batch. Each dimension's standard deviation falls short of $\\gamma$, and the shaded shortfall is what $v(Z)$ adds up; the streak is tilted because $z_1$ and $z_2$ copy each other, a large $C_{12}$ for $c(Z)$. Right: a spread batch, where both terms are about zero. Toy points.", "左：塌縮的一批嵌入。每個維度的標準差都不到 $\\gamma$，著色的不足部分就是 $v(Z)$ 加總的量；這道斜線之所以傾斜，是因為 $z_1$ 與 $z_2$ 互相複製，$c(Z)$ 會看到很大的 $C_{12}$。右：散開的一批，兩項都約為零。點是示意用的。"]}>
+        <RepresentationVicreg />
+      </Pictured>
       <P
         t={[
           "**The family.** **I-JEPA** (2023) takes one image, encodes a large visible *context* block, and predicts the target encoder's representations of several hidden *target* blocks of the same image, with an EMA target encoder and no hand-crafted augmentations. **V-JEPA** (2024) does the same for video: mask regions across space and time and predict their features; it was trained on about 2 million public videos with no text, no negatives and no pixel reconstruction. **V-JEPA 2** (June 2025) scaled this to over a million hours of internet video, then froze the encoder and trained an action-conditioned predictor, **V-JEPA 2-AC**, on under 62 hours of unlabelled robot video from the DROID dataset.",
@@ -231,12 +234,12 @@ function Jepa({ n }: { n: number }) {
           "**值得注意的地方。** 防塌縮項關閉時，預測損失趨近於零，*同時*點雲消失：以模型唯一被告知的標準來看，它越來越好。這就是塌縮危險之處：訓練曲線看起來像成功。打開防塌縮項後，預測損失停在零以上，因為兩個視角中的雜訊本來就無法預測，而編碼器不再被允許靠縮小來掩蓋它。三個群保持分開：表示保留了兩個視角共有的東西。",
         ]}
       />
-      <Code
-        title="src/models/jepaToy.ts"
-        code={region(jepaSrc, "regulariser")}
+      <Py
+        title="python/wm/jepa_toy.py"
+        code={pyRegion(jepaSrc, "regulariser")}
         note={[
-          "The anti-collapse terms and their gradient, written out by hand; a test checks the gradient against finite differences, that the spread falls below $10^{-4}$ in 300 steps without them, and that it stays above 1.5 with them.",
-          "防塌縮項及其梯度，親手寫出；測試會用有限差分檢查梯度，並確認沒有這兩項時 300 步內散布降到 $10^{-4}$ 以下，有這兩項時維持在 1.5 以上。",
+          "The anti-collapse terms and their gradient, written out by hand in numpy (the demo runs the same model, ported to TypeScript); a test checks the gradient against finite differences, that the spread falls below $10^{-4}$ in 300 steps without them, and that it stays above 1.5 with them.",
+          "防塌縮項及其梯度，用 numpy 親手寫出（示範執行的是同一個模型，移植成 TypeScript）；測試會用有限差分檢查梯度，並確認沒有這兩項時 300 步內散布降到 $10^{-4}$ 以下，有這兩項時維持在 1.5 以上。",
         ]}
       />
       <Sources

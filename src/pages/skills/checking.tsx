@@ -3,23 +3,17 @@ import { useLang } from "@learnkit/web";
 import { SKILLS_OUTLINES } from "../../curriculum.ts";
 import { CartpoleErrorPlot } from "../../demos/CartpoleDemo.tsx";
 import { RolloutCalibration } from "../../demos/RolloutFan.tsx";
-import cartpoleSrc from "../../models/cartpole.ts?raw";
-import ensembleSrc from "../../models/ensemble.ts?raw";
-import cartpoleTest from "../../../tests/cartpole.test.ts?raw";
-import ensembleTest from "../../../tests/ensemble.test.ts?raw";
-import gridworldTest from "../../../tests/gridworld.test.ts?raw";
-import lossesTest from "../../../tests/losses.test.ts?raw";
-import { Callout, Code, Eq, Figure, List, P, Page, Section, SiteLink, Sources, Table, type L } from "../kit.tsx";
+import cartpoleSrc from "../../../python/wm/cartpole.py?raw";
+import ensembleSrc from "../../../python/wm/ensemble.py?raw";
+import cartpoleTest from "../../../python/tests/test_cartpole.py?raw";
+import ensembleTest from "../../../python/tests/test_ensemble.py?raw";
+import gridworldTest from "../../../python/tests/test_gridworld.py?raw";
+import lossesTest from "../../../python/tests/test_losses.py?raw";
+import { CoveragePicture } from "../../demos/pictures/CheckingPictures.tsx";
+import { Callout, Figure, List, P, Page, Pictured, Py, pyRegion, Section, SiteLink, Sources, Table, type L } from "../kit.tsx";
 
 const OUTLINE = SKILLS_OUTLINES.find((o) => o.id === "checking")!;
 const PAGE = "checking";
-
-/** The text between `// #region name` and `// #endregion name` in a source file (markers removed). */
-function region(src: string, name: string): string {
-  const m = src.match(new RegExp(`// #region ${name}\\n([\\s\\S]*?)// #endregion ${name}`));
-  if (!m) throw new Error(`no region ${name}`);
-  return m[1].trimEnd();
-}
 
 export default function Checking({ section }: { section: string | null }) {
   return (
@@ -27,8 +21,8 @@ export default function Checking({ section }: { section: string | null }) {
       <Section page={PAGE} id="tests" n={1} title={["Rollout error, calibration and sanity tests", "推演誤差、校準與基本檢查"]}>
         <P
           t={[
-            "\"Good enough\" depends on the use. A model for planning ten steps ahead must be right for ten steps; a model whose uncertainty steers exploration must be honest about that uncertainty; any model must at least respect what you know for certain about the world. Those are three different checks, and a low training loss guarantees none of them. Every figure on this page is computed by the same functions the book's tests call.",
-            "「夠好」取決於用途。用來往前規劃十步的模型，必須在十步內都正確；用不確定性來引導探索的模型，必須對那份不確定性誠實；任何模型至少都必須遵守你確知的世界規律。這是三種不同的檢查，而訓練損失低，並不保證其中任何一種。本頁的每張圖，都由本書測試所呼叫的同一批函式計算。",
+            "\"Good enough\" depends on the use. A model for planning ten steps ahead must be right for ten steps; a model whose uncertainty steers exploration must be honest about that uncertainty; any model must at least respect what you know for certain about the world. Those are three different checks, and a low training loss guarantees none of them. The code below is the book's Python (numpy) and its pytest tests; every figure is computed by the same functions, ported to TypeScript to run in the browser, and the tests also check that the two ports agree.",
+            "「夠好」取決於用途。用來往前規劃十步的模型，必須在十步內都正確；用不確定性來引導探索的模型，必須對那份不確定性誠實；任何模型至少都必須遵守你確知的世界規律。這是三種不同的檢查，而訓練損失低，並不保證其中任何一種。下面的程式碼是本書的 Python（numpy）與它的 pytest 測試；每張圖都由同一批函式計算，只是移植到 TypeScript 在瀏覽器中執行，而測試也會檢查兩個版本是否一致。",
           ]}
         />
 
@@ -39,7 +33,7 @@ export default function Checking({ section }: { section: string | null }) {
             "在你將使用模型的地方測量誤差：從許多起始狀態開迴路執行 $H$ 步，並在每一步與真實值比較。把它對 $H$ 作圖，旁邊放上單步誤差（每次都從真實狀態重新開始）。兩條曲線之間的差距，就是誤差累積。",
           ]}
         />
-        <Code title="src/models/cartpole.ts" code={region(cartpoleSrc, "horizon")} />
+        <Py title="python/wm/cartpole.py" code={pyRegion(cartpoleSrc, "horizon")} />
         <Figure caption={["The learned linear cart-pole model, 40 starts, zero force, log scale. The one-step error stays small; the rollout error grows by orders of magnitude.", "學到的線性倒單擺模型，40 個起點、不施力、對數刻度。單步誤差一直很小；推演誤差則增長了好幾個數量級。"]}>
           <CartpoleErrorPlot />
         </Figure>
@@ -49,7 +43,7 @@ export default function Checking({ section }: { section: string | null }) {
             "寫成測試時，檢查的是*形狀*，而不是任何無害改動都會打破的精確數值：誤差隨檢查點增長，而推演誤差最後遠高於單步誤差。",
           ]}
         />
-        <Code title="tests/cartpole.test.ts" code={region(cartpoleTest, "horizon")} />
+        <Py title="python/tests/test_cartpole.py" code={pyRegion(cartpoleTest, "horizon")} />
 
         <Sub n={2} t={["Calibration of predicted uncertainty", "預測不確定性的校準"]} />
         <P
@@ -58,7 +52,15 @@ export default function Checking({ section }: { section: string | null }) {
             "會回報不確定性的模型，做出了一個可以檢查的承諾：它的中央 90% 區間應該大約有 90% 的時候包含真實結果，50% 區間大約一半的時候包含，依此類推。**可靠度圖**用來檢驗這個承諾。對每個標稱機率 $p$，計算測試結果落在模型中央 $p$ 區間內的比例。對高斯預測 $\\mathcal N(\\mu, s^2)$ 而言，這個區間是 $|y - \\mu| \\le z_p\\, s$，其中 $z_p = \\Phi^{-1}\\!\\big(\\tfrac{1+p}{2}\\big)$：",
           ]}
         />
-        <Eq tex={"\\text{coverage}(p) = \\frac{1}{N}\\sum_{n=1}^{N} \\mathbf 1\\!\\left[\\frac{|y_n - \\mu_n|}{s_n} \\le z_p\\right], \\qquad \\text{calibration error} = \\frac{1}{|P|}\\sum_{p \\in P} |\\text{coverage}(p) - p|"} />
+        <Pictured
+          tex={"\\text{coverage}(p) = \\frac{1}{N}\\sum_{n=1}^{N} \\mathbf 1\\!\\left[\\frac{|y_n - \\mu_n|}{s_n} \\le z_p\\right], \\qquad \\text{calibration error} = \\frac{1}{|P|}\\sum_{p \\in P} |\\text{coverage}(p) - p|"}
+          caption={[
+            "Left: eight test cases at $p = 0.9$. Each amber bar is the predicted interval $\\mu_n \\pm z_p s_n$, each gray dot the true $y_n$; filled dots fall inside, hollow ones outside. Six of eight inside gives $\\text{coverage}(0.9) = 0.75$. Right: coverage against $p$; the calibration error is the average length of the gaps to the diagonal.",
+            "左：$p = 0.9$ 時的八個測試案例。每根琥珀色長條是預測區間 $\\mu_n \\pm z_p s_n$，每個灰點是真實的 $y_n$；實心點落在區間內，空心點落在外面。八個中有六個在內，所以 $\\text{coverage}(0.9) = 0.75$。右：覆蓋率對 $p$ 的圖；校準誤差就是各點到對角線差距的平均長度。",
+          ]}
+        >
+          <CoveragePicture />
+        </Pictured>
         <P
           t={[
             "Below, the ensemble of Concepts ▸ Stochasticity and uncertainty is tested on one-step predictions, first with its noise estimate alone ($s = \\hat\\sigma$), then with the members' disagreement added ($s^2 = \\hat\\sigma^2 + \\mathrm{sd}_m^2$).",
@@ -75,8 +77,8 @@ export default function Checking({ section }: { section: string | null }) {
             ["Always test calibration on the states you will actually visit, including ones away from the training data, because that is where planners go.", "務必在你實際會造訪的狀態上檢驗校準，包括遠離訓練資料的狀態，因為規劃器正是會往那裡去。"],
           ]}
         />
-        <Code title="src/models/ensemble.ts" code={region(ensembleSrc, "calibration")} />
-        <Code title="tests/ensemble.test.ts" code={region(ensembleTest, "calibration")} />
+        <Py title="python/wm/ensemble.py" code={pyRegion(ensembleSrc, "calibration")} />
+        <Py title="python/tests/test_ensemble.py" code={pyRegion(ensembleTest, "calibration")} />
 
         <Sub n={3} t={["Sanity tests", "基本檢查"]} />
         <P
@@ -91,36 +93,37 @@ export default function Checking({ section }: { section: string | null }) {
             "**守恆律。**在沒有摩擦、沒有推力時，倒單擺小車的力學能必須保持不變，即使擺桿倒過了水平也一樣。方程裡的正負號錯誤，或積分器的時間步長錯誤，都會立刻現形。",
           ]}
         />
-        <Code title="tests/cartpole.test.ts" code={region(cartpoleTest, "energy")} />
+        <Py title="python/tests/test_cartpole.py" code={pyRegion(cartpoleTest, "energy")} />
         <P
           t={[
             "**Reference outputs.** Work out a value by hand (or with an independent method) and check the code against it. For the pole at rest, tilted 0.1 rad, the equations reduce to $\\ddot\\theta = g\\sin\\theta / \\big(l(\\tfrac43 - m\\cos^2\\theta/M)\\big)$, which a calculator gives as 1.573785 rad/s².",
             "**參考輸出。**用手算（或用獨立的方法）算出一個值，再拿程式碼和它比對。擺桿靜止、傾斜 0.1 弧度時，方程化簡為 $\\ddot\\theta = g\\sin\\theta / \\big(l(\\tfrac43 - m\\cos^2\\theta/M)\\big)$，用計算機算出來是 1.573785 rad/s²。",
           ]}
         />
-        <Code title="tests/cartpole.test.ts" code={region(cartpoleTest, "reference")} />
+        <Py title="python/tests/test_cartpole.py" code={pyRegion(cartpoleTest, "reference")} />
         <P
           t={[
             "**Known behaviour, including known failures.** Test that a model is wrong exactly where you expect, not just right where you hope. The gridworld test pins down the learned model's blind spot at the door; the loss test checks a closed form against a Monte Carlo estimate, and that a collapsed encoder really does score a perfect zero.",
             "**已知的行為，包括已知的失敗。**測試模型恰好在你預期的地方出錯，而不只是在你希望的地方正確。格子世界的測試確認了學到的模型在門口的盲點；損失函數的測試把封閉形式與蒙地卡羅估計比對，並確認塌縮的編碼器真的得到完美的零分。",
           ]}
         />
-        <Code title="tests/gridworld.test.ts" code={region(gridworldTest, "door")} />
-        <Code title="tests/losses.test.ts" code={region(lossesTest, "kl")} />
+        <Py title="python/tests/test_gridworld.py" code={pyRegion(gridworldTest, "door")} />
+        <Py title="python/tests/test_losses.py" code={pyRegion(lossesTest, "kl")} />
         <Table
           head={[["Test file", "測試檔"], ["What it checks", "檢查什麼"]]}
           rows={[
-            [["`tests/gridworld.test.ts`", "`tests/gridworld.test.ts`"], ["walls, ice slides, key and door, reward on the goal; the learned model agrees everywhere except on moves into ice or the door", "牆、冰面滑行、鑰匙與門、終點獎勵；學到的模型除了走進冰面或門以外處處一致"]],
-            [["`tests/cartpole.test.ts`", "`tests/cartpole.test.ts`"], ["hand-derived accelerations, RK4 against 10 000 Euler steps, energy conservation, mirror symmetry, the fitted linearisation, error growing with horizon", "手算的加速度、RK4 對比 10 000 步歐拉法、能量守恆、鏡像對稱、擬合出的線性化、誤差隨步數增長"]],
-            [["`tests/ensemble.test.ts`", "`tests/ensemble.test.ts`"], ["normal CDF and quantile, learned noise near the true noise, disagreement outside the data, fan width, calibration in and out of the data", "常態分布的累積分布函數與分位數、學到的雜訊接近真實雜訊、資料外的分歧、扇形寬度、資料內外的校準"]],
-            [["`tests/losses.test.ts`", "`tests/losses.test.ts`"], ["MSE and Gaussian NLL, KL against Monte Carlo, the VAE special case, collapse scoring zero", "MSE 與高斯負對數似然、KL 對比蒙地卡羅、VAE 特例、塌縮得到零分"]],
+            [["`python/tests/test_gridworld.py`", "`python/tests/test_gridworld.py`"], ["walls, ice slides, key and door, reward on the goal; the learned model agrees everywhere except on moves into ice or the door", "牆、冰面滑行、鑰匙與門、終點獎勵；學到的模型除了走進冰面或門以外處處一致"]],
+            [["`python/tests/test_cartpole.py`", "`python/tests/test_cartpole.py`"], ["hand-derived accelerations, RK4 against 10 000 Euler steps, energy conservation, mirror symmetry, the fitted linearisation, error growing with horizon", "手算的加速度、RK4 對比 10 000 步歐拉法、能量守恆、鏡像對稱、擬合出的線性化、誤差隨步數增長"]],
+            [["`python/tests/test_ensemble.py`", "`python/tests/test_ensemble.py`"], ["normal CDF and quantile, learned noise near the true noise, disagreement outside the data, fan width, calibration in and out of the data", "常態分布的累積分布函數與分位數、學到的雜訊接近真實雜訊、資料外的分歧、扇形寬度、資料內外的校準"]],
+            [["`python/tests/test_losses.py`", "`python/tests/test_losses.py`"], ["MSE and Gaussian NLL, KL against Monte Carlo, the VAE special case, collapse scoring zero", "MSE 與高斯負對數似然、KL 對比蒙地卡羅、VAE 特例、塌縮得到零分"]],
+            [["each file's `test_agrees_with_typescript`", "每個檔案的 `test_agrees_with_typescript`"], ["the TypeScript port gives the same numbers (within 1e-9) on given inputs: grid steps, cart-pole derivatives and RK4 steps, ridge fits for given random features, every loss", "TypeScript 版本在給定輸入上算出相同的數字（誤差在 1e-9 內）：格子世界的每一步、倒單擺的導數與 RK4 步、給定隨機特徵的嶺迴歸、每一種損失"]],
           ]}
         />
         <Callout kind="tip" title={["Run them", "執行它們"]}>
           <P
             t={[
-              "From the repository root: `pixi run test` (or `node --test tests/*.test.ts`). Each file runs in well under a second, and every random number comes from a fixed seed, so a failure is always reproducible.",
-              "在儲存庫根目錄執行：`pixi run test`（或 `node --test tests/*.test.ts`）。每個檔案都在一秒內跑完，而且每個亂數都來自固定種子，所以任何失敗都能重現。",
+              "From the repository root: `pixi run test-py` (or `python -m pytest python/tests`). Each file runs in about a second, and every random number comes from `np.random.default_rng(seed)` with a fixed seed, so a failure is always reproducible. The TypeScript port has its own tests (`pixi run test`), which also write the fixtures the agreement tests read.",
+              "在儲存庫根目錄執行：`pixi run test-py`（或 `python -m pytest python/tests`）。每個檔案大約一秒跑完，而且每個亂數都來自固定種子的 `np.random.default_rng(seed)`，所以任何失敗都能重現。TypeScript 版本有自己的測試（`pixi run test`），它們也會寫出一致性測試所讀取的資料檔。",
             ]}
           />
         </Callout>
@@ -139,7 +142,7 @@ export default function Checking({ section }: { section: string | null }) {
             { label: "Kuleshov et al. (2018), Accurate Uncertainties for Deep Learning Using Calibrated Regression", url: "https://arxiv.org/abs/1807.00263" },
             { label: "Chua et al. (2018), Deep Reinforcement Learning in a Handful of Trials using Probabilistic Dynamics Models (PETS)", url: "https://arxiv.org/abs/1805.12114" },
             { label: "Janner et al. (2019), When to Trust Your Model: Model-Based Policy Optimization (MBPO)", url: "https://arxiv.org/abs/1906.08253" },
-            { label: "Node.js test runner (node:test)", url: "https://nodejs.org/api/test.html" },
+            { label: "pytest documentation", url: "https://docs.pytest.org/" },
           ]}
         />
       </Section>

@@ -4,8 +4,18 @@
  * it recovers the hand-derived linearisation, and its rollout error grows with the horizon.
  */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
-import { DT, derivs, energy, errorVsHorizon, G, HALF_LENGTH, learned, learnedWeights, POLE_MASS, CART_MASS, rollout, step, type CartState } from "../src/models/cartpole.ts";
+import { DT, derivs, energy, errorVsHorizon, fitLinear, G, HALF_LENGTH, learned, learnedWeights, linearModel, POLE_MASS, CART_MASS, rollout, step, trainingData, type CartState } from "../src/models/cartpole.ts";
+import { gaussian, rng } from "../src/models/rng.ts";
+
+/** Write python/tests/fixtures/<name>.json with UPDATE_FIXTURES=1; otherwise assert it matches the current output. */
+function checkFixture(name: string, data: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(data) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+}
 
 const close = (a: number, b: number, tol: number, what: string) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);
 
@@ -68,3 +78,16 @@ test("rollout error grows with the horizon, and faster than the one-step error",
   assert.ok(r[1] < 1e-4);
 });
 // #endregion horizon
+
+test("fixture for the Python port: derivatives, RK4 steps, energy and a least-squares fit for given data", () => {
+  const r = rng(21);
+  const cases = Array.from({ length: 8 }, (_, k) => {
+    const s: CartState = [gaussian(r), gaussian(r), 0.5 * k * gaussian(r), 2 * gaussian(r)];
+    const force = 10 * (2 * r() - 1);
+    return { s, force, derivs: derivs(s, force), step: step(s, force), energy: energy(s) };
+  });
+  const { inputs, forces, targets } = trainingData(40, 3);
+  const weights = fitLinear(inputs, forces, targets);
+  const s: CartState = [0.1, 0.1, 0.03, -0.05];
+  checkFixture("cartpole", { constants: { G, CART_MASS, POLE_MASS, HALF_LENGTH, DT }, cases, fit: { inputs, forces, targets, weights, s, force: 2, prediction: linearModel(weights)(s, 2) } });
+});

@@ -8,21 +8,16 @@ import { CONCEPT_OUTLINES } from "../../curriculum.ts";
 import LatentAction from "../../demos/LatentAction.tsx";
 import Persistence from "../../demos/Persistence.tsx";
 import TinyGame from "../../demos/TinyGame.tsx";
-import latentSrc from "../../models/latentActions.ts?raw";
-import persistenceSrc from "../../models/persistence.ts?raw";
-import tinyGameSrc from "../../models/tinyGame.ts?raw";
-import { Callout, Code, Eq, Evidence, Figure, HistoryLinks, List, P, Page, Section, SiteLink, Sources, Table } from "../kit.tsx";
+import latentSrc from "../../../python/wm/latent_actions.py?raw";
+import persistenceSrc from "../../../python/wm/persistence.py?raw";
+import tinyGameSrc from "../../../python/wm/tiny_game.py?raw";
+import GenerativeConditioning from "../../demos/pictures/GenerativeConditioning.tsx";
+import GenerativeLam from "../../demos/pictures/GenerativeLam.tsx";
+import { Callout, Evidence, Figure, HistoryLinks, List, P, Page, Pictured, Py, pyRegion, Section, SiteLink, Sources, Table } from "../kit.tsx";
 
 const OUTLINE = CONCEPT_OUTLINES.find((o) => o.id === "generative")!;
 const PAGE = "generative";
 
-/** The lines between `// #region name` and `// #endregion name` of a model file: a real excerpt, never a copy. */
-function region(src: string, name: string): string {
-  const start = src.indexOf(`// #region ${name}`);
-  const end = src.indexOf(`// #endregion ${name}`);
-  if (start < 0 || end < 0) throw new Error(`no region ${name}`);
-  return src.slice(src.indexOf("\n", start) + 1, end).trimEnd();
-}
 
 const arxiv = (id: string, label: string) => ({ label, url: `https://arxiv.org/abs/${id}` });
 
@@ -58,7 +53,12 @@ function Video({ n }: { n: number }) {
           "差別只是多一個引數。以 $x_t$ 表示時間 $t$ 的畫面、$x_{\\le t}$ 表示到目前為止的所有畫面、$c$ 表示文字提示、$a_t$ 表示在時間 $t$ 採取的動作（一個按鍵、搖桿、機器人指令）：",
         ]}
       />
-      <Eq tex="\underbrace{p(x_{t+1}\mid x_{\le t},\,c)}_{\text{video generation}}\qquad\longrightarrow\qquad \underbrace{p(x_{t+1}\mid x_{\le t},\,a_t)}_{\text{action-conditioned: a world model}}" />
+      <Pictured
+        tex="\underbrace{p(x_{t+1}\mid x_{\le t},\,c)}_{\text{video generation}}\qquad\longrightarrow\qquad \underbrace{p(x_{t+1}\mid x_{\le t},\,a_t)}_{\text{action-conditioned: a world model}}"
+        caption={["Same past frames, two questions. Top: a video model continues the clip that the prompt $c$ describes. Bottom: a world model is asked what follows each action $a_t$, and a different key gives a different next frame.", "同樣的過去畫面，兩種問題。上：影片模型把提示 $c$ 描述的片段接下去。下：世界模型被問到每個動作 $a_t$ 之後會怎樣，按不同的鍵，就得到不同的下一幀。"]}
+      >
+        <GenerativeConditioning />
+      </Pictured>
       <P
         t={[
           "With $a_t$ in the condition, the generator becomes the $p(s'\\mid s,a)$ of the first page, except that the state is a stack of pictures. You can then press keys and *play* the model, or let an agent practise inside it.",
@@ -129,7 +129,7 @@ function Video({ n }: { n: number }) {
       >
         <TinyGame />
       </Figure>
-      <Code title="src/models/tinyGame.ts" code={region(tinyGameSrc, "generator")} note={["The whole generator: counting and normalising.", "整個生成器：計數與正規化。"]} />
+      <Py title="python/wm/tiny_game.py" code={pyRegion(tinyGameSrc, "generator")} note={["The whole generator: counting and normalising. The demo runs the same model, ported to TypeScript.", "整個生成器：計數與正規化。示範執行的是同一個模型，移植成 TypeScript。"]} />
       <P t={["What to notice:", "要注意的地方："]} />
       <List
         items={[
@@ -205,7 +205,12 @@ function Genie({ n }: { n: number }) {
           ],
         ]}
       />
-      <Eq tex="\tilde a_t = \mathrm{VQ}\big(\mathrm{enc}(x_{\le t},\,x_{t+1})\big)\in\{1,\dots,8\},\qquad \mathcal L_{\text{LAM}} = \big\lVert x_{t+1}-\mathrm{dec}(x_{\le t},\,\tilde a_t)\big\rVert^2,\qquad \hat z_{t+1}\sim p_\theta(z_{t+1}\mid z_{\le t},\,\tilde a_{\le t})" />
+      <Pictured
+        tex="\tilde a_t = \mathrm{VQ}\big(\mathrm{enc}(x_{\le t},\,x_{t+1})\big)\in\{1,\dots,8\},\qquad \mathcal L_{\text{LAM}} = \big\lVert x_{t+1}-\mathrm{dec}(x_{\le t},\,\tilde a_t)\big\rVert^2,\qquad \hat z_{t+1}\sim p_\theta(z_{t+1}\mid z_{\le t},\,\tilde a_{\le t})"
+        caption={["The latent action model sees $x_t$ and $x_{t+1}$, encodes the change, and $\\mathrm{VQ}$ snaps it to the nearest of eight codebook vectors, $\\tilde a_t$. The decoder must rebuild $x_{t+1}$ from the past and that one code; what it misses is $\\mathcal L_{\\text{LAM}}$. At play time the encoder is gone and you pick the code.", "潛在動作模型看 $x_t$ 與 $x_{t+1}$，把變化編碼，再由 $\\mathrm{VQ}$ 對到八個碼本向量中最近的一個，即 $\\tilde a_t$。解碼器只能用過去的畫面與這一個代碼重建 $x_{t+1}$；重建不到的部分就是 $\\mathcal L_{\\text{LAM}}$。遊玩時編碼器不在了，由你挑代碼。"]}
+      >
+        <GenerativeLam />
+      </Pictured>
       <P
         t={[
           "Here $\\mathrm{enc}$ and $\\mathrm{dec}$ are the latent action model's encoder and decoder, $\\mathrm{VQ}$ snaps a vector to its nearest codebook entry, and $p_\\theta$ is the dynamics model. To play, the encoder is thrown away: the person picks one of the eight codes, and Genie generates the next frame. Given a single image, even a sketch, it makes the image playable. Genie won a Best Paper award at ICML 2024.",
@@ -232,8 +237,8 @@ function Genie({ n }: { n: number }) {
       >
         <LatentAction />
       </Figure>
-      <Code title="src/models/latentActions.ts" code={region(latentSrc, "feature")} />
-      <Code title="src/models/latentActions.ts" code={region(latentSrc, "kmeans")} note={["The test checks that on clean data the five codes match the five keys up to a renaming.", "測試檢查：在乾淨的資料上，五個代碼在重新命名之下正好對上五個按鍵。"]} />
+      <Py title="python/wm/latent_actions.py" code={pyRegion(latentSrc, "feature")} />
+      <Py title="python/wm/latent_actions.py" code={pyRegion(latentSrc, "kmeans")} note={["The test checks that on clean data the five codes match the five keys up to a renaming. The demo runs the same model, ported to TypeScript.", "測試檢查：在乾淨的資料上，五個代碼在重新命名之下正好對上五個按鍵。示範執行的是同一個模型，移植成 TypeScript。"]} />
       <P
         t={[
           "**After Genie.** The line has moved from 2-D platformers to 3-D worlds, from seconds to minutes, and from a paper to a product:",
@@ -355,8 +360,8 @@ function WorldLabs({ n }: { n: number }) {
       >
         <Persistence />
       </Figure>
-      <Code title="src/models/persistence.ts" code={region(persistenceSrc, "framestep")} />
-      <Code title="src/models/persistence.ts" code={region(persistenceSrc, "project")} note={["(b) is a pure function of the camera: the same yaw always gives the same view.", "(b) 是相機的純函數：同一個偏航角永遠給出同一個視野。"]} />
+      <Py title="python/wm/persistence.py" code={pyRegion(persistenceSrc, "framestep")} />
+      <Py title="python/wm/persistence.py" code={pyRegion(persistenceSrc, "project")} note={["(b) is a pure function of the camera: the same yaw always gives the same view. The demo runs the same model, ported to TypeScript.", "(b) 是相機的純函數：同一個偏航角永遠給出同一個視野。示範執行的是同一個模型，移植成 TypeScript。"]} />
       <Table
         head={[
           ["", ""],

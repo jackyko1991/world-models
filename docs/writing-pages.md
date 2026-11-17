@@ -24,15 +24,30 @@ is the contract every page follows. Several pages are written at the same time, 
   ``fetch(`${import.meta.env.BASE_URL}models/<name>.json`)``; tests read the same file from `public/models/`, and one
   test should check the TS forward pass reproduces numbers the script saved alongside the weights.
 
+## Code on the pages is Python
+The reader studies **Python** (numpy), as on Tensorizer and Polyphonizer; TypeScript is only the engine that runs
+the demos in the browser.
+- Each model has a readable Python module `python/wm/<model>.py` (snake_case names, numpy only, type hints, short
+  docstrings; written to be read, not golfed) with regions marked `# region <name>` … `# endregion`.
+- Pages show those regions with `<Py code={pyRegion(src, "<name>")} title="python/wm/<model>.py" />`, where
+  `import src from "<relative path>/python/wm/<model>.py?raw"` (both from `src/pages/kit.tsx`). No TypeScript code
+  blocks on pages; text says the demo runs "the same model, ported to TypeScript".
+- `python/tests/test_<model>.py` (pytest, `pixi run test-py`): the model's own properties (as the TS tests do), and
+  **agreement with the TypeScript port**: the TS test writes `python/tests/fixtures/<model>.json` (inputs and outputs
+  of the deterministic functions; for random ones, use explicit inputs such as given samples or noise arrays, since
+  numpy's and our TS RNG streams differ) when run with `UPDATE_FIXTURES=1`, and otherwise asserts the file matches the
+  current TS output; the Python test loads it (`fixture("<model>")` in conftest.py) and matches within 1e-9 (1e-5 for
+  float32 assets). Shared weights come from `public/models/` (`asset("<file>")`).
+
 ## Do not edit (shared; ask in your report instead)
 `src/App.tsx`, `src/pages/kit.tsx`, `src/strings.ts`, `src/curriculum.ts`, `src/history.ts`, `src/models/rng.ts`,
-`package.json`, `pixi.toml`, `src/index.css`, `public/history/`, and every file another writer owns. Need a helper the
+`python/wm/__init__.py`, `python/tests/conftest.py`, `package.json`, `pixi.toml`, `src/index.css`, `public/history/`, and every file another writer owns. Need a helper the
 kit lacks? Put it in your own file. Do not commit.
 
 ## Page shape (see `src/pages/kit.tsx`)
 `Page` (contents sidebar, title, intro) → numbered `Section`s. Inside a section: `P` (RichText paragraph: `**bold**`,
 `*italic*`, `` `code` ``, `$maths$`, bare https URLs; markdown `[text](url)` links are **not** rendered, use `SiteLink` for links within the book), `Eq` (display maths), `List`, `Figure` (wrap every demo),
-`Code` (read-only TypeScript, titled with its path; show **real excerpts** of your `src/models/` files, not paraphrases),
+`Pictured` (an equation **with its physical picture**: every display equation is one, never a bare `Eq`), `Code` (read-only TypeScript, titled with its path; show **real excerpts** of your `src/models/` files, not paraphrases),
 `Table`, `Callout`, `Sources`, `HistoryLinks` (chips to History cards; ids in `src/history.ts`), `SiteLink`
 (`to={["concept", "planning", "cem"]}`), `Evidence` (established / demonstrated / speculative), `Slider`, `DemoButton`.
 - Keep the **section ids and order** of your page's outline in `src/curriculum.ts` (they are deep links,

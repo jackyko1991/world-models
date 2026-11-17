@@ -4,6 +4,7 @@
  * short memory changes what is there; and the z-buffer keeps the nearest splat.
  */
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { RING, VIEW, differences, makeScene, renderScene, startFrameModel, turn, type Splat } from "../src/models/persistence.ts";
 
@@ -58,4 +59,42 @@ test("z-buffer: a nearer splat hides a farther one in the same direction", () =>
   const v = renderScene([far, near], 0);
   assert.equal(v[3]?.colour, 2);
   assert.equal(renderScene([near, far], 0)[3]?.colour, 2);
+});
+
+// ---- agreement with the Python model (python/wm/persistence.py) -----------------------------------------------------------
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/persistence.json; otherwise the file must match what this port computes now.
+const FIXTURE = new URL("../python/tests/fixtures/persistence.json", import.meta.url);
+function checkFixture(data: unknown) {
+  const json = JSON.stringify(data);
+  if (process.env.UPDATE_FIXTURES) {
+    mkdirSync(new URL(".", FIXTURE), { recursive: true });
+    writeFileSync(FIXTURE, json + "\n");
+    return;
+  }
+  assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
+  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+}
+
+test("fixture for the Python model: the splat projection at every yaw, and frame-model steps that only recall", () => {
+  const first = renderScene(scene, 0);
+  // turning right reveals columns nobody remembers (invented with the TS random numbers); from there, the turns back
+  // only recall, so both languages must give the same views
+  const panned = turn(startFrameModel(first, 0), 3, 8);
+  const views: unknown[] = [];
+  let m = panned;
+  for (const [steps, memory] of [[-3, 8], [2, 8], [-1, 4], [-1, 4]]) {
+    m = turn(m, steps, memory);
+    views.push({ steps, memory, yaw: m.yaw, view: m.memory.at(-1)!.view });
+  }
+  const zbuffer: Splat[] = [
+    { az: 4, dist: 8, radius: 1, top: 2, colour: 1 },
+    { az: 4, dist: 3, radius: 0.5, top: 1, colour: 2 },
+    { az: 47.6, dist: 4, radius: 0.6, top: 1.5, colour: 3 },
+  ];
+  checkFixture({
+    scene,
+    renders: Array.from({ length: RING }, (_, yaw) => ({ yaw, view: renderScene(scene, yaw) })),
+    zbuffer: { splats: zbuffer, renders: [0, 3, 44].map((yaw) => ({ yaw, view: renderScene(zbuffer, yaw) })) },
+    frameModel: { first, panned, views },
+  });
 });

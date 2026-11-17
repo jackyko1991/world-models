@@ -3,6 +3,7 @@
  * variance and covariance terms they stay spread; and the hand-written gradient matches a finite difference.
  */
 import assert from "node:assert/strict";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { embed, initState, makeData, spread, stats, train, trainStep, type ToyState } from "../src/models/jepaToy.ts";
 
@@ -54,4 +55,33 @@ test("the analytic gradient matches central differences", () => {
 
 test("training is deterministic", () => {
   assert.deepEqual(train(start, makeData(), { antiCollapse: true }, 20).state, train(initState(), data, { antiCollapse: true }, 20).state);
+});
+
+// ---- agreement with the Python model (python/wm/jepa_toy.py) -----------------------------------------------------------
+// UPDATE_FIXTURES=1 writes python/tests/fixtures/jepa_toy.json; otherwise the file must match what this port computes now.
+const FIXTURE = new URL("../python/tests/fixtures/jepa_toy.json", import.meta.url);
+function checkFixture(data: unknown) {
+  const json = JSON.stringify(data);
+  if (process.env.UPDATE_FIXTURES) {
+    mkdirSync(new URL(".", FIXTURE), { recursive: true });
+    writeFileSync(FIXTURE, json + "\n");
+    return;
+  }
+  assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
+  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+}
+
+test("fixture for the Python model: a few gradient steps from given data and weights", () => {
+  const runs = [false, true].map((antiCollapse) => {
+    let s = start;
+    const steps: unknown[] = [];
+    for (let t = 0; t < 4; t++) {
+      const r = trainStep(s, data, { antiCollapse });
+      s = r.state;
+      steps.push({ W: s.W, A: s.A, b: s.b, prediction: r.prediction, regulariser: r.regulariser, spread: spread(s, data) });
+    }
+    return { antiCollapse, steps };
+  });
+  const { mean, variance, cov } = stats(embed(start, data).z);
+  checkFixture({ v: data.v, vp: data.vp, W: start.W, A: start.A, b: start.b, stats: { mean, variance, cov }, runs });
 });

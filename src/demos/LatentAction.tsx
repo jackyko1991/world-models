@@ -55,7 +55,7 @@ export default function LatentAction() {
           {pick(["Let the player bump into walls", "讓玩家撞牆"])}
         </label>
       </div>
-      <div className="grid gap-3 sm:grid-cols-[1fr_1fr]">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <figure className="space-y-1">
           <svg viewBox={`0 0 ${VB} ${VB}`} className="mx-auto h-auto w-full max-w-[220px]" role="img" aria-label={pick(["Frame pairs placed by how the player moved, coloured by code", "依玩家移動位置排列的畫面對，以代碼著色"])}>
             <rect width={VB} height={VB} fill="white" stroke="#e5e7eb" />

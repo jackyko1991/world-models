@@ -9,7 +9,8 @@ import DynaCurves from "../../demos/DynaCurves.tsx";
 import MctsTree from "../../demos/MctsTree.tsx";
 import MuzeroUnroll from "../../demos/MuzeroUnroll.tsx";
 import { CEM_DEFAULTS } from "../../models/cem.ts";
-import { Callout, Eq, Evidence, Figure, HistoryLinks, List, P, Page, Section, SiteLink, Sources, Table } from "../kit.tsx";
+import { CemRefitPicture, MuzeroLossPicture, PlanningObjectivePicture, QUpdatePicture, UctPicture } from "../../demos/pictures/PlanningPictures.tsx";
+import { Callout, Evidence, Figure, HistoryLinks, List, P, Page, Pictured, Section, SiteLink, Sources, Table } from "../kit.tsx";
 
 const OUTLINE = CONCEPT_OUTLINES.find((o) => o.id === "planning")!;
 const PAGE = "planning";
@@ -31,7 +32,15 @@ function Cem({ n }: { n: number }) {
           "把 $H$ 個動作組成的計畫寫成一個向量 $\\mathbf a = (a_0, \\dots, a_{H-1})$。從目前狀態 $s$ 出發，模型 $\\hat f$ 預測狀態 $\\hat s_{t+1} = \\hat f(\\hat s_t, a_t)$，再由成本 $c$ 為每一步評分：",
         ]}
       />
-      <Eq tex="J(\mathbf a) = \sum_{t=0}^{H-1} c(\hat s_{t+1}, a_t), \qquad \hat s_0 = s." />
+      <Pictured
+        tex="J(\mathbf a) = \sum_{t=0}^{H-1} c(\hat s_{t+1}, a_t), \qquad \hat s_0 = s."
+        caption={[
+          "From the real state $s$ the model imagines $H$ steps ahead (amber). Each bar is one step's cost, here the distance still to go; $J$ is the total of the bars. Only the first action $a_0$ is ever carried out.",
+          "模型從真實狀態 $s$ 往前想像 $H$ 步（琥珀色）。每根長條是一步的成本，這裡是離目標還有多遠；$J$ 是長條的總和。真正會執行的只有第一個動作 $a_0$。",
+        ]}
+      >
+        <PlanningObjectivePicture />
+      </Pictured>
       <P
         t={[
           "**Random shooting** draws $N$ plans at random and keeps the cheapest. It is simple and parallel, but in a long plan almost every random sequence is poor, so it wastes most of its samples.",
@@ -44,7 +53,15 @@ function Cem({ n }: { n: number }) {
           "**交叉熵法**（CEM；Rubinstein，1999）學會該往哪裡取樣。它維持一個計畫上的高斯分布 $\\mathcal N(\\boldsymbol\\mu, \\operatorname{diag}\\boldsymbol\\sigma^2)$，反覆四步：取樣 $N$ 個計畫 $\\mathbf a^{(i)}$；用 $J$ 評分；留下最便宜的 $K$ 個，即**菁英** $E$；把高斯分布重新擬合到菁英上：",
         ]}
       />
-      <Eq tex="\boldsymbol\mu \leftarrow \frac1K \sum_{i \in E} \mathbf a^{(i)}, \qquad \boldsymbol\sigma^2 \leftarrow \frac1K \sum_{i \in E} \big(\mathbf a^{(i)} - \boldsymbol\mu\big)^2." />
+      <Pictured
+        tex="\boldsymbol\mu \leftarrow \frac1K \sum_{i \in E} \mathbf a^{(i)}, \qquad \boldsymbol\sigma^2 \leftarrow \frac1K \sum_{i \in E} \big(\mathbf a^{(i)} - \boldsymbol\mu\big)^2."
+        caption={[
+          "Each dot is a whole plan, squashed to a point in two dimensions for the picture; the gray rings are cost $J$, lowest at the centre. Plans are sampled from the old Gaussian (dashed). The $K$ cheapest (filled) become the elites, and the new $\\boldsymbol\\mu$, $\\boldsymbol\\sigma$ are their mean and spread: the solid ellipse, smaller and moved toward low cost.",
+          "每個點是一整個計畫，為了作圖壓成二維中的一點；灰色圓環是成本 $J$，中心最低。計畫從舊的高斯分布（虛線）取樣。最便宜的 $K$ 個（實心）成為菁英，新的 $\\boldsymbol\\mu$、$\\boldsymbol\\sigma$ 就是它們的平均與分散：實線橢圓，更小，並移向低成本處。",
+        ]}
+      >
+        <CemRefitPicture />
+      </Pictured>
       <P
         t={[
           "Each round the Gaussian moves toward the cheap region and narrows. After a few rounds most samples are good ones.",
@@ -117,7 +134,15 @@ function Imagination({ n }: { n: number }) {
           "**Dyna**（Sutton，1990）把兩者放進同一個迴圈。Q 學習維護一張表 $Q(s, a)$，估計在狀態 $s$ 採取動作 $a$ 之後還會得到的折扣獎勵；每走一步 $(s, a, r, s')$，就把它往目標推一點：",
         ]}
       />
-      <Eq tex="Q(s,a) \leftarrow Q(s,a) + \alpha\big[\,r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]." />
+      <Pictured
+        tex="Q(s,a) \leftarrow Q(s,a) + \alpha\big[\,r + \gamma \max_{a'} Q(s',a') - Q(s,a)\big]."
+        caption={[
+          "One update, with made-up numbers. Action $a$ takes the agent from $s$ to $s'$ and pays $r$. The best value in $s'$, discounted by $\\gamma$ and added to $r$, is the target; $Q(s,a)$ moves a fraction $\\alpha$ of the gap toward it. Dyna-Q applies the same step to transitions replayed from its model.",
+          "一次更新，數字是虛構的。動作 $a$ 把智能體從 $s$ 帶到 $s'$，得到 $r$。$s'$ 中最好的價值乘上 $\\gamma$ 再加上 $r$ 就是目標；$Q(s,a)$ 朝它移動差距的 $\\alpha$ 比例。Dyna-Q 對從模型重播的轉移套用同樣的一步。",
+        ]}
+      >
+        <QUpdatePicture />
+      </Pictured>
       <P
         t={[
           "Here $\\alpha$ is the step size and $\\gamma < 1$ the discount. Dyna-Q also stores each transition in a **model**, here just a table: \"from $s$, action $a$ led to $s'$ with reward $r$\". After every real step it replays $n$ remembered transitions from the model and applies the very same update to each. With $n = 0$ it is plain Q-learning.",
@@ -224,7 +249,15 @@ function Muzero({ n }: { n: number }) {
           "先看搜尋。**蒙地卡羅樹搜尋**一次一輪地長出一棵局面樹。*選擇*從根往下走，在每個節點選 UCT 分數最高的走法（Kocsis 與 Szepesvári，2006）；*擴展*把一個新走法加成葉節點；*模擬*隨機下到終局；*回傳*把結果加到路徑上的每個節點。設節點被造訪 $N(s)$ 次，其走法 $a$ 被造訪 $N(s,a)$ 次，總結果為 $W(s,a)$：",
         ]}
       />
-      <Eq tex="a^\ast = \arg\max_a \left[\frac{W(s,a)}{N(s,a)} + c\sqrt{\frac{\ln N(s)}{N(s,a)}}\right]." />
+      <Pictured
+        tex="a^\ast = \arg\max_a \left[\frac{W(s,a)}{N(s,a)} + c\sqrt{\frac{\ln N(s)}{N(s,a)}}\right]."
+        caption={[
+          "Four moves from one node, with made-up counts. Gray is the mean result $W/N$; amber is the exploration bonus, which shrinks as a move's visits $N(s,a)$ grow. Selection takes the tallest total: here not the move with the best mean, but a less-tried one that is still promising.",
+          "從一個節點出發的四個走法，次數是虛構的。灰色是平均結果 $W/N$；琥珀色是探索加成，隨著走法的造訪次數 $N(s,a)$ 增加而縮小。選擇取總和最高者：這裡不是平均結果最好的走法，而是一個試得較少、仍有希望的走法。",
+        ]}
+      >
+        <UctPicture />
+      </Pictured>
       <P
         t={[
           "The first term exploits moves that have done well; the second, with $c = \\sqrt2$ here, keeps trying moves that have been tried little. After the search, the move with the most visits is played.",
@@ -272,7 +305,15 @@ function Muzero({ n }: { n: number }) {
           "在搜尋中，$g$ 取代了規則，$f$ 的價值取代了隨機下完；策略 $p$ 是選擇分數中的先驗，讓搜尋先試有希望的走法。訓練時把模型沿著真實軌跡展開 $K$ 步，讓它的預測去配合觀測到的獎勵 $u$、搜尋自己的造訪分布 $\\pi$ 以及回報 $z$：",
         ]}
       />
-      <Eq tex="\ell = \sum_{k=0}^{K} \Big[\ell^r(u_{t+k}, r^k) + \ell^v(z_{t+k}, v^k) + \ell^p(\pi_{t+k}, p^k)\Big]." />
+      <Pictured
+        tex="\ell = \sum_{k=0}^{K} \Big[\ell^r(u_{t+k}, r^k) + \ell^v(z_{t+k}, v^k) + \ell^p(\pi_{t+k}, p^k)\Big]."
+        caption={[
+          "The model unrolled $K = 2$ steps from the observation $o_t$. Each amber prediction ($r^k$, $v^k$, $p^k$) is pulled toward the real quantity below it ($u$, $z$, $\\pi$); the hidden states $s^k$ are never compared with anything.",
+          "模型從觀測 $o_t$ 展開 $K = 2$ 步。每個琥珀色預測（$r^k$、$v^k$、$p^k$）都被拉向它下方的真實量（$u$、$z$、$\\pi$）；隱藏狀態 $s^k$ 從不與任何東西比對。",
+        ]}
+      >
+        <MuzeroLossPicture />
+      </Pictured>
       <P
         t={[
           "There is no term for reconstructing the observation. With this, MuZero matched AlphaZero at Go, chess and shogi, which had been given the rules, and set a new state of the art on the Atari benchmark.",

@@ -3,8 +3,17 @@
  * on plain floor and differs exactly where the page says it does (ice and the door), and frames differ only there.
  */
 import assert from "node:assert/strict";
+import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { ACTIONS, DELTA, MAP, diffCells, learnedStep, observe, rollout, start, trueStep, type Action, type State } from "../src/models/gridworld.ts";
+
+/** Write python/tests/fixtures/<name>.json with UPDATE_FIXTURES=1; otherwise assert it matches the current output. */
+function checkFixture(name: string, data: unknown) {
+  const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
+  const text = JSON.stringify(data) + "\n";
+  if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
+  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+}
 
 const at = (row: number, col: number, hasKey = false, doorOpen = false): State => ({ row, col, hasKey, doorOpen });
 
@@ -64,4 +73,19 @@ test("the learned model is exactly right except when the move enters ice or the 
         }
       }
   assert.ok(agree > 150, `agreed on ${agree} transitions`);
+});
+
+test("fixture for the Python port: both step functions from every free cell, and frames", () => {
+  const cases = [];
+  for (let row = 1; row < 6; row++)
+    for (let col = 1; col < 7; col++)
+      for (const hasKey of [false, true])
+        for (const doorOpen of [false, true]) {
+          if (MAP[row][col] === "wall") continue;
+          const s = at(row, col, hasKey, doorOpen);
+          for (const a of ACTIONS) cases.push({ s, a, true: trueStep(s, a), learned: learnedStep(s, a) });
+        }
+  const frames = [start(), at(2, 6, true), at(3, 6, true, true), at(3, 1, true)].map((s) => ({ s, frame: observe(s) }));
+  const path: Action[] = ["down", "down", "up", "up", "right", "right", "right", "right", "down", "down", "down", "down"];
+  checkFixture("gridworld", { start: start(), cases, frames, path, trueRollout: rollout(trueStep, start(), path), learnedRollout: rollout(learnedStep, start(), path) });
 });
