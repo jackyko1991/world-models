@@ -1,0 +1,40 @@
+# One environment for the whole repo: Node (the site, as CI uses) and Python (the offline scripts in scripts/).
+# From the repo root: `pixi run dev`, `pixi run test`, `pixi run build`, `pixi run history-images`.
+[workspace]
+name = "world-models"
+channels = ["conda-forge"]
+platforms = ["osx-arm64", "osx-64", "linux-64", "win-64"]
+
+[dependencies]
+nodejs = "24.*" # the same major version as .github/workflows/pages.yml
+python = "3.13.*"
+
+[tasks]
+install = { cmd = "npm ci", inputs = ["package.json", "package-lock.json"], outputs = ["node_modules/.package-lock.json"] }
+dev = { cmd = "npm run dev --", depends-on = ["install"], description = "the site with hot reload" }
+test = { cmd = "npm test", depends-on = ["install"], description = "unit tests (node --test)" }
+test-links = { cmd = "npm test", env = { LINKS = "1" }, depends-on = ["install"], description = "unit tests, and fetch every History source URL (needs the network)" }
+typecheck = { cmd = "npx tsc -b", depends-on = ["install"] }
+build = { cmd = "npm run build", depends-on = ["install"], description = "the static site in dist/" }
+preview = { cmd = "npm run preview", depends-on = ["build"] }
+history-images = { cmd = "python scripts/history_svgs.py", description = "redraw the History cards' diagrams (public/history/*.svg)" }
+
+# Offline training of the demos' small fixed models (latent map, tiny NeRF, 2-D/3-D Gaussian splats): weights are
+# exported to public/ as JSON/bin and only run in the browser, never trained there. Its own environment, so the site's
+# stays small: pixi run -e train <task>.
+[feature.train]
+platforms = ["osx-arm64", "linux-64", "win-64"] # PyTorch has no Intel-Mac wheels for this Python
+
+[feature.train.pypi-dependencies]
+numpy = "*"
+torch = "*"
+
+[feature.train.tasks]
+latent-map = { cmd = "python scripts/latent_map.py", description = "train the Latent spaces VAE (public/models/latent-map.json; ~10 s)" }
+fourier-fit = { cmd = "python scripts/fourier_fit.py", description = "fit the spectral-bias demo (public/models/fourier-fit.json; ~3 s)" }
+splat2d = { cmd = "python scripts/splat2d.py", description = "fit the 2-D splatting demo (public/models/splat2d.json; ~25 s)" }
+splat3d = { cmd = "python scripts/splat3d.py", description = "fit the 3-D Gaussian scene (public/models/splat3d.bin + .json; ~5 min on CPU)" }
+tiny-nerf = { cmd = "python scripts/tiny_nerf.py", description = "train the tiny NeRF (public/models/tiny-nerf.json; ~3 min on CPU)" }
+
+[environments]
+train = { features = ["train"], solve-group = "default" }
