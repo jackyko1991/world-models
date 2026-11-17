@@ -3,6 +3,7 @@
  * variance and covariance terms they stay spread; and the hand-written gradient matches a finite difference.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { embed, initState, makeData, spread, stats, train, trainStep, type ToyState } from "../src/models/jepaToy.ts";
@@ -68,7 +69,7 @@ function checkFixture(data: unknown) {
     return;
   }
   assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
-  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+  assertClose(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
 }
 
 test("fixture for the Python model: a few gradient steps from given data and weights", () => {

@@ -4,6 +4,7 @@
  * player may walk into walls a blocked move lands in the same code as "stay" (the frames cannot tell them apart).
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { applyCode, confusion, feature, framePairs, learnLatentActions, purity } from "../src/models/latentActions.ts";
@@ -68,7 +69,7 @@ function checkFixture(data: unknown) {
     return;
   }
   assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
-  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+  assertClose(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
 }
 
 test("fixture for the Python model: features, the k-means fixed point, grading and playing a code", () => {

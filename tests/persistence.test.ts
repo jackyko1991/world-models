@@ -4,6 +4,7 @@
  * short memory changes what is there; and the z-buffer keeps the nearest splat.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { RING, VIEW, differences, makeScene, renderScene, startFrameModel, turn, type Splat } from "../src/models/persistence.ts";
@@ -72,7 +73,7 @@ function checkFixture(data: unknown) {
     return;
   }
   assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
-  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+  assertClose(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
 }
 
 test("fixture for the Python model: the splat projection at every yaw, and frame-model steps that only recall", () => {

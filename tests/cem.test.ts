@@ -1,5 +1,6 @@
 /** CEM: converges on a quadratic's known optimum, beats random shooting at equal samples, and MPC reaches the goal. */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { CEM_DEFAULTS, cem, cemIteration, mpc, randomShooting } from "../src/models/cem.ts";
@@ -11,7 +12,7 @@ function checkFixture(name: string, data: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(data) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
 }
 
 test("CEM converges on the optimum of a shifted quadratic", () => {

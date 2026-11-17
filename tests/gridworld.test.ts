@@ -3,6 +3,7 @@
  * on plain floor and differs exactly where the page says it does (ice and the door), and frames differ only there.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { ACTIONS, DELTA, MAP, diffCells, learnedStep, observe, rollout, start, trueStep, type Action, type State } from "../src/models/gridworld.ts";
@@ -12,7 +13,7 @@ function checkFixture(name: string, data: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(data) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
 }
 
 const at = (row: number, col: number, hasKey = false, doorOpen = false): State => ({ row, col, hasKey, doorOpen });

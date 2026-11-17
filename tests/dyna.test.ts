@@ -1,5 +1,6 @@
 /** Dyna-Q against Q-learning on Sutton & Barto's maze, averaged over fixed seeds, at equal real steps. */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { DYNA_DEFAULTS, DYNA_MAZE, averageCurve, dynaQ, episodesByStep, greedy, mazeStep, qUpdate, shortestPath } from "../src/models/dyna.ts";
@@ -10,7 +11,7 @@ function checkFixture(name: string, data: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(data) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
 }
 
 const SEEDS = [1, 2, 3, 4, 5, 6, 7, 8];

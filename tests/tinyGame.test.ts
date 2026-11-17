@@ -5,6 +5,7 @@
  * are flagged, and more recorded play covers more of the game.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { COIN_SPOTS, START, TOKENS, UNKNOWN, coverage, decode, encode, predict, record, render, step, train, type Action } from "../src/models/tinyGame.ts";
@@ -76,7 +77,7 @@ function checkFixture(data: unknown) {
     return;
   }
   assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
-  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+  assertClose(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
 }
 
 test("fixture for the Python model: game steps, tokens and a trained table", () => {

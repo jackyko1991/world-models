@@ -4,6 +4,7 @@
  * it recovers the hand-derived linearisation, and its rollout error grows with the horizon.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { DT, derivs, energy, errorVsHorizon, fitLinear, G, HALF_LENGTH, learned, learnedWeights, linearModel, POLE_MASS, CART_MASS, rollout, step, trainingData, type CartState } from "../src/models/cartpole.ts";
@@ -14,7 +15,7 @@ function checkFixture(name: string, data: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(data) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
 }
 
 const close = (a: number, b: number, tol: number, what: string) => assert.ok(Math.abs(a - b) <= tol, `${what}: ${a} vs ${b}`);

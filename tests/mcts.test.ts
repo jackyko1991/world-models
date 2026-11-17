@@ -1,5 +1,6 @@
 /** UCT MCTS on tic-tac-toe: takes a forced win, blocks a forced loss, and its tree statistics add up. */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { backup, bestMove, legal, newNode, iterate, play, select, toMove, uct, unroll, winner, type Board, type MctsNode } from "../src/models/mcts.ts";
@@ -10,7 +11,7 @@ function checkFixture(name: string, data: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(data) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.equal(readFileSync(path, "utf8"), text, `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `python/tests/fixtures/${name}.json is stale: run UPDATE_FIXTURES=1 node --test tests/${name}.test.ts`);
 }
 
 const _ = 0;

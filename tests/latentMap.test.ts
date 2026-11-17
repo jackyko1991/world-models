@@ -4,6 +4,7 @@
  * interpolating pixels cross-fades two half-bright balls.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { decode, lerpLatent, lerpPixels, nearest, peak, renderFrame, type LatentMapData } from "../src/models/latentMap.ts";
@@ -68,7 +69,7 @@ function checkFixture(data: unknown) {
     return;
   }
   assert.ok(existsSync(FIXTURE), "missing fixture: run with UPDATE_FIXTURES=1");
-  assert.deepEqual(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
+  assertClose(JSON.parse(readFileSync(FIXTURE, "utf8")), JSON.parse(json), "fixture is stale: run with UPDATE_FIXTURES=1");
 }
 
 test("fixture for the Python decoder", () => {

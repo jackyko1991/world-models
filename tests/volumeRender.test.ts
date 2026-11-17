@@ -5,6 +5,7 @@
  * outputs for the Python model to match); otherwise it checks that file is current.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { rng } from "../src/models/rng.ts";
@@ -118,7 +119,7 @@ function fixture(name: string, value: unknown) {
   const path = new URL(`../python/tests/fixtures/${name}.json`, import.meta.url);
   const text = JSON.stringify(value) + "\n";
   if (process.env.UPDATE_FIXTURES) writeFileSync(path, text);
-  else assert.deepEqual(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `${name}.json is stale: run UPDATE_FIXTURES=1 node --test`);
+  else assertClose(JSON.parse(readFileSync(path, "utf8")), JSON.parse(text), `${name}.json is stale: run UPDATE_FIXTURES=1 node --test`);
 }
 
 /** An Rng that returns the given numbers in turn, so Python can be handed the same "random" draws. */

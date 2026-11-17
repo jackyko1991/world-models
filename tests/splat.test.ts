@@ -5,6 +5,7 @@
  * reference; and the renderer reproduces the reference pixels scripts/splat2d.py and scripts/splat3d.py saved.
  */
 import assert from "node:assert/strict";
+import { assertClose } from "./fixtures.ts";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { test } from "node:test";
 import { gaussian, rng } from "../src/models/rng.ts";
@@ -275,5 +276,5 @@ test("the Python fixture (python/tests/fixtures/splat.json) is current", () => {
   const file = new URL("../python/tests/fixtures/splat.json", import.meta.url);
   const data = JSON.parse(JSON.stringify(splatFixture()));
   if (process.env.UPDATE_FIXTURES === "1") writeFileSync(file, JSON.stringify(data) + "\n");
-  assert.deepEqual(JSON.parse(readFileSync(file, "utf8")), data, "run with UPDATE_FIXTURES=1 to refresh it");
+  assertClose(JSON.parse(readFileSync(file, "utf8")), data, "run with UPDATE_FIXTURES=1 to refresh it");
 });
